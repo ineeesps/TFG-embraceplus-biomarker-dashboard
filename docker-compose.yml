@@ -1,0 +1,11 @@
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescale_tfg
+    restart: always
+    environment:
+      - POSTGRES_DB=tfg_embrace
+      - POSTGRES_USER=ines
+      - POSTGRES_PASSWORD=tfg_password
+    ports:
+      - "5432:5432"

@@ -20,7 +20,7 @@ DB_CONFIG = {
     "port": "5432"
 }
 
-# Diccionario de patrones oficial de tu orquestador
+# Diccionario de patrones orquestador
 PATRONES_SENSORES = {
     'temperature': 'temperature',
     'eda': 'eda',
@@ -53,12 +53,12 @@ async def health():
     except:
         return {"status": "error", "db": "disconnected"}
 
-# --- TAREA 2.2: ENDPOINT DE INGESTA CON TU LÓGICA REAL ---
+# ENDPOINT DE INGESTA 
 @app.post("/cargar-archivo/{id_participante}")
 async def cargar_archivo_automatico(id_participante: str, file: UploadFile = File(...)):
     """
     Identifica el sensor y aplica el filtro de 'device_not_recording'
-    igual que tu script cargar_datos.py
+    igual que el script cargar_datos.py
     """
     nombre_archivo = file.filename.lower()
     sensor_detectado = None
@@ -76,7 +76,7 @@ async def cargar_archivo_automatico(id_participante: str, file: UploadFile = Fil
         contenido = await file.read()
         df = pd.read_csv(io.BytesIO(contenido), low_memory=False)
         
-        # 2. Aplicar TU lógica de limpieza (La que deja las 27 filas)
+        # 2. Aplicar  lógica de limpieza 
         # Filtramos las filas donde el dispositivo no estaba grabando
         df_limpio = df[df['missing_value_reason'] != 'device_not_recording'].copy()
         

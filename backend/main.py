@@ -12,7 +12,6 @@ dir_actual = os.path.dirname(os.path.abspath(__file__))
 ruta_scripts = os.path.join(dir_actual, '..', 'scripts')
 sys.path.append(ruta_scripts)
 
-
 from cargar_datos import cargar_csv_a_timescale
 
 app = FastAPI(
@@ -21,9 +20,10 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Configuración de la base de datos en Docker
+# Configuración de la base de datos: 
+# Usa 'DB_HOST' si estamos en Docker, si no, usa 'localhost' (para pruebas locales)
 DB_CONFIG = {
-    "host": "localhost",
+    "host": os.getenv("DB_HOST", "localhost"),
     "database": "tfg_embrace",
     "user": "ines",
     "password": "tfg_password",

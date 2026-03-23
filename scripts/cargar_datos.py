@@ -33,11 +33,15 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante):
         'sedentary': 0, 'lpa': 1, 'mpa': 2, 'vpa': 3          # activity_intensity
     }
 
-    if not os.path.exists(ruta_entrada): return
+    if not os.path.exists(ruta_entrada): 
+        raise FileNotFoundError(f"No se encontró el archivo: {ruta_entrada}")
 
     try:
-        conn = psycopg2.connect(dbname="tfg_embrace", user="ines", password="tfg_password", host="localhost", port="5432")
+        # Usamos variable de entorno para que funcione tanto en Docker como en local
+        db_host = os.getenv("DB_HOST", "localhost")
+        conn = psycopg2.connect(dbname="tfg_embrace", user="ines", password="tfg_password", host=db_host, port="5432")
         cur = conn.cursor()
+        
         df = pd.read_csv(ruta_entrada, low_memory=False)
         
         # Limpieza 
@@ -67,8 +71,9 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante):
             print(f"¡ÉXITO! {len(datos_finales)} registros de {tipo_sensor} cargados.")
 
     except Exception as e:
-        print(f"Error en {archivo_nombre}: {e}")
         if 'conn' in locals(): conn.rollback()
+        # Lanzamos el error hacia arriba para que FastAPI (main.py) se entere
+        raise Exception(f"Fallo en la base de datos al procesar {archivo_nombre}: {str(e)}")
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()

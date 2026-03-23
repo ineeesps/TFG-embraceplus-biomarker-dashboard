@@ -1,4 +1,5 @@
 services:
+  # BASE DE DATOS
   db:
     image: timescale/timescaledb:latest-pg16
     container_name: timescale_tfg
@@ -8,4 +9,23 @@ services:
       - POSTGRES_USER=ines
       - POSTGRES_PASSWORD=tfg_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
+
+  # API FASTAPI
+  api:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: api_tfg
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db  # Con esto la API sabe que tiene que llamar a la base de datos de arriba
+    volumes:
+      # Conectamos carpetas reales con el contenedor en tiempo real
+      - ./backend:/app/backend
+      - ./scripts:/app/scripts
+      - ./data:/app/data

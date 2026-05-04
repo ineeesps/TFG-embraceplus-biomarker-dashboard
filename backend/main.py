@@ -38,7 +38,7 @@ PATRONES_SENSORES = {
     'activity-intensity': 'activity_intensity', 'wearing-detection': 'wearing_detection',
     'activity-classification': 'activity_class', 'activity-counts': 'activity_counts',
     'actigraphy-counts': 'actigraphy_vector', 'body-position': 'body_position',
-    'acticounts': 'acticounts_x'
+    'acticounts': 'acticounts_total', 'sleep-detection': 'sleep_detection'
 }
 
 @app.get("/")
@@ -101,15 +101,24 @@ async def cargar_archivo_automatico(id: str, file: UploadFile = File(...)):
         if os.path.exists(ruta_temp):
             os.remove(ruta_temp)
 
-        # Calculamos cuántas filas limpias quedaron para informar
-        df_limpio = df[df['missing_value_reason'] != 'device_not_recording']
+        # REGLA DEL 5% DE RENDIMIENTO ESENCIAL
+        total_filas = len(df)
+        df_invalidas = df[df['missing_value_reason'].notnull() & (df['missing_value_reason'] != '')]
+        porcentaje_perdida = (len(df_invalidas) / total_filas * 100) if total_filas > 0 else 0
+        alerta_integridad = porcentaje_perdida > 5.0
+
+        mensaje_final = "Datos validados e insertados correctamente en TimescaleDB"
+        if alerta_integridad:
+            mensaje_final += f" (ALERTA: Pérdida de integridad del {porcentaje_perdida:.2f}%)"
 
         return {
             "status": "success",
             "participante": id,
             "sensor": sensor_detectado,
-            "filas_insertadas": len(df_limpio),
-            "mensaje": "Datos validados e insertados correctamente en TimescaleDB"
+            "filas_insertadas": total_filas,
+            "porcentaje_perdida_datos": round(porcentaje_perdida, 2),
+            "alerta_integridad_comprometida": alerta_integridad,
+            "mensaje": mensaje_final
         }
 
     except HTTPException as http_e:
@@ -121,24 +130,44 @@ async def cargar_archivo_automatico(id: str, file: UploadFile = File(...)):
 # EL "CONTRATO" DE DATOS (JSON)
 # ==========================================
 @app.get("/participante/{id}/metricas")
-async def consultar_datos(id: str):
+async def consultar_datos(id: str, start: str = None, end: str = None):
     """
-    Paso C: Devuelve los datos para que Flutter los lea a 60 fps (RF4.1)
+    Retorna datos resampleados para visualización con filtrado temporal opcional.
     """
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Busca por el ID del participante, no solo por sensor
-        cur.execute("""
-            SELECT time, sensor_type, value, quality_flag 
-            FROM biomarcadores 
-            WHERE participant_id = %s 
-            ORDER BY time DESC 
-            LIMIT 100
-        """, (id,))
+        query = """
+            SELECT 
+                time_bucket('30 seconds', time) AS bucket,
+                sensor_type,
+                AVG(value) as value,
+                CASE 
+                    WHEN COUNT(*) FILTER (WHERE quality_flag LIKE '%%device_not_recording%%') > 0 THEN 'device_not_recording'
+                    WHEN COUNT(*) FILTER (WHERE quality_flag LIKE '%%low_signal_quality%%') > 0 THEN 'low_signal_quality'
+                    WHEN COUNT(*) FILTER (WHERE quality_flag LIKE '%%motion%%') > 0 THEN 'worn_during_motion'
+                    ELSE 'good'
+                END as quality_flag
+            FROM biomarcadores
+            WHERE participant_id = %s
+        """
+        params = [id]
+        if start:
+            query += " AND time >= %s"
+            params.append(start)
+        if end:
+            query += " AND time <= %s"
+            params.append(end)
+
+        query += " GROUP BY bucket, sensor_type ORDER BY bucket ASC"
         
+        cur.execute(query, tuple(params))
         res = cur.fetchall()
+        for row in res:
+            row['time'] = row['bucket'].isoformat()
+            del row['bucket']
+        
         cur.close()
         conn.close()
         
@@ -149,3 +178,47 @@ async def consultar_datos(id: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/participante/{id}/exportar")
+async def exportar_datos(id: str):
+    """
+    Genera un CSV con los datos crudos para el investigador.
+    """
+    import io
+    import csv
+    from fastapi.responses import StreamingResponse
+
+    def generate():
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT time, sensor_type, value, quality_flag 
+            FROM biomarcadores 
+            WHERE participant_id = %s 
+            ORDER BY time ASC
+        """, (id,))
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['timestamp', 'sensor', 'value', 'quality_flag'])
+        yield output.getvalue()
+        output.truncate(0)
+        output.seek(0)
+        
+        while True:
+            rows = cur.fetchmany(1000)
+            if not rows: break
+            for row in rows:
+                writer.writerow(row)
+            yield output.getvalue()
+            output.truncate(0)
+            output.seek(0)
+        
+        cur.close()
+        conn.close()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=investigacion_{id}.csv"}
+    )

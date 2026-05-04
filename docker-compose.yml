@@ -10,20 +10,21 @@ services:
       - POSTGRES_PASSWORD=tfg_password
     ports:
       - "5433:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
 
   # API FASTAPI
-  api:
+  api_v2:
     build: 
       context: .
       dockerfile: backend/Dockerfile
-    container_name: api_tfg
     restart: always
     ports:
       - "8000:8000"
     depends_on:
       - db
     environment:
-      - DB_HOST=db  # Con esto la API sabe que tiene que llamar a la base de datos de arriba
+      - DB_HOST=db  
     volumes:
       # Conectamos carpetas reales con el contenedor en tiempo real
       - ./backend:/app/backend

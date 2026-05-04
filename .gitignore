@@ -2,3 +2,15 @@
 *.xlsx
 __pycache__/
 .ipynb_checkpoints/
+
+# Ignorar base de datos local y archivos de sistema
+TFG_Analisis/postgres_data/
+postgres_data/
+.idea/
+*.zip
+
+# Ignorar temporales de Flutter
+Proyecto_widget/build/
+Proyecto_widget/.dart_tool/
+Proyecto_widget/.flutter-plugins
+Proyecto_widget/.flutter-plugins-dependencies

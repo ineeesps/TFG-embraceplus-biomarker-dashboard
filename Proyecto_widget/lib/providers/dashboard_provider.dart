@@ -1,0 +1,76 @@
+import 'package:flutter/material.dart';
+import '../models/biomarker.dart';
+import '../services/api_service.dart';
+
+class DashboardProvider with ChangeNotifier {
+  final ApiService _apiService = ApiService();
+  List<Biomarker> _metrics = [];
+  bool _isLoading = false;
+  String? _error;
+  String? _selectedOverlaySensor;
+
+  TimeOfDay? _startHour;
+  TimeOfDay? _endHour;
+  DateTime? _sessionDate;
+
+  List<Biomarker> get metrics => _metrics;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  String? get selectedOverlaySensor => _selectedOverlaySensor;
+  TimeOfDay? get startHour => _startHour;
+  TimeOfDay? get endHour => _endHour;
+  DateTime? get sessionDate => _sessionDate;
+
+  void setTimeRange(TimeOfDay? start, TimeOfDay? end, String participantId) {
+    _startHour = start;
+    _endHour = end;
+    fetchMetrics(participantId);
+  }
+
+  void setSelectedOverlaySensor(String? sensor) {
+    _selectedOverlaySensor = sensor;
+    notifyListeners();
+  }
+
+  Future<void> fetchMetrics(String participantId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      String? startStr;
+      String? endStr;
+
+      if (_startHour != null && _sessionDate != null) {
+        final dateStart = DateTime.utc(_sessionDate!.year, _sessionDate!.month, _sessionDate!.day, _startHour!.hour, _startHour!.minute);
+        startStr = dateStart.toIso8601String();
+      }
+      if (_endHour != null && _sessionDate != null) {
+        final dateEnd = DateTime.utc(_sessionDate!.year, _sessionDate!.month, _sessionDate!.day, _endHour!.hour, _endHour!.minute);
+        endStr = dateEnd.toIso8601String();
+      }
+
+      _metrics = await _apiService.getMetrics(participantId, startTime: startStr, endTime: endStr);
+      
+      // Store the session date from the first payload if not set, or update if we removed the filter
+      if (_metrics.isNotEmpty && _startHour == null && _endHour == null) {
+        _sessionDate = _metrics.first.time.toUtc();
+      }
+      
+    } catch (e) {
+
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Map<String, List<Biomarker>> get metricsBySensor {
+    final Map<String, List<Biomarker>> map = {};
+    for (var m in _metrics) {
+      map.putIfAbsent(m.sensorType, () => []).add(m);
+    }
+    return map;
+  }
+}

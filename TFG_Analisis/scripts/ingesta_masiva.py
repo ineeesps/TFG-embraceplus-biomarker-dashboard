@@ -18,6 +18,8 @@ def procesar_carpeta(ruta_base, id_participante):
     
     conteo = 0
     errores = 0
+    alertas_clinicas = []
+
     for ruta_absoluta in archivos_csv:
         nombre_archivo = os.path.basename(ruta_absoluta).lower()
         sensor_detectado = None
@@ -29,14 +31,23 @@ def procesar_carpeta(ruta_base, id_participante):
                 
         if sensor_detectado:
             try:
-                # print(f"  Cargando: {sensor_detectado} <- {nombre_archivo}")
-                cargar_csv_a_timescale(ruta_absoluta, sensor_detectado, id_participante)
+                # El nuevo cargar_csv_a_timescale devuelve un dict con estadísticas
+                resultado = cargar_csv_a_timescale(ruta_absoluta, sensor_detectado, id_participante)
                 conteo += 1
+                
+                if resultado['clinical_warning']:
+                    alertas_clinicas.append((sensor_detectado, resultado['loss_percentage']))
+                    
             except Exception as e:
                 print(f"  [ERROR] {nombre_archivo}: {e}")
                 errores += 1
                 
     print(f"[{id_participante}] Finalizado: {conteo} archivos cargados, {errores} errores.")
+    if alertas_clinicas:
+        print(f"  ⚠️ ALERTAS DE INTEGRIDAD (>5% pérdida de datos detectada):")
+        for sensor, loss in alertas_clinicas:
+            print(f"     - {sensor}: {loss:.2f}% de datos perdidos o corruptos.")
+            
     return conteo
 
 def main():

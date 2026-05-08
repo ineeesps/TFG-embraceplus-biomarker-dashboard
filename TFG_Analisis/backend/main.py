@@ -170,7 +170,11 @@ async def consultar_datos(id: str, start: str = None, end: str = None, bucket_si
             SELECT 
                 time_bucket(CAST(%s AS INTERVAL), time) AS bucket,
                 sensor_type,
-                AVG(value) as value,
+                CASE 
+                    WHEN sensor_type IN ('activity_class', 'activity_intensity', 'body_position', 'sleep_detection') 
+                    THEN mode() WITHIN GROUP (ORDER BY value)
+                    ELSE AVG(value)
+                END as value,
                 CASE 
                     WHEN COUNT(*) FILTER (WHERE quality_flag LIKE '%%device_not_recording%%') > 0 THEN 'device_not_recording'
                     WHEN COUNT(*) FILTER (WHERE quality_flag LIKE '%%low_signal_quality%%') > 0 THEN 'low_signal_quality'
@@ -208,45 +212,50 @@ async def consultar_datos(id: str, start: str = None, end: str = None, bucket_si
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/participante/{id}/exportar")
-async def exportar_datos(id: str):
+async def exportar_datos(id: str, bucket_size: str = '1 minute'):
     """
-    Genera un CSV con los datos crudos para el investigador.
+    Módulo de Exportación Unificada:
+    Genera un CSV con todas las métricas alineadas temporalmente (pivotado)
+    para facilitar la investigación clínica en herramientas como SPSS o R.
     """
     import io
-    import csv
     from fastapi.responses import StreamingResponse
-
-    def generate():
+    try:
         conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT time, sensor_type, value, quality_flag 
-            FROM biomarcadores 
-            WHERE participant_id = %s 
-            ORDER BY time ASC
-        """, (id,))
         
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(['timestamp', 'sensor', 'value', 'quality_flag'])
-        yield output.getvalue()
-        output.truncate(0)
-        output.seek(0)
+        # Descargamos los datos ya resampleados para alinear las frecuencias
+        query = f"""
+            SELECT 
+                time_bucket(CAST('{bucket_size}' AS INTERVAL), time) AS timestamp,
+                sensor_type,
+                CASE 
+                    WHEN sensor_type IN ('activity_class', 'activity_intensity', 'body_position', 'sleep_detection') 
+                    THEN mode() WITHIN GROUP (ORDER BY value)
+                    ELSE AVG(value)
+                END as value
+            FROM biomarcadores
+            WHERE participant_id = '{id}'
+            GROUP BY timestamp, sensor_type
+            ORDER BY timestamp ASC
+        """
         
-        while True:
-            rows = cur.fetchmany(1000)
-            if not rows: break
-            for row in rows:
-                writer.writerow(row)
-            yield output.getvalue()
-            output.truncate(0)
-            output.seek(0)
-        
-        cur.close()
+        df = pd.read_sql_query(query, conn)
         conn.close()
 
-    return StreamingResponse(
-        generate(),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=investigacion_{id}.csv"}
-    )
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No hay datos para este participante")
+
+        # Alineación Temporal: Convertimos filas de sensores en columnas
+        df_pivot = df.pivot(index='timestamp', columns='sensor_type', values='value').reset_index()
+        
+        output = io.StringIO()
+        df_pivot.to_csv(output, index=False)
+        output.seek(0)
+        
+        return StreamingResponse(
+            output,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=dataset_unificado_{id}.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en el módulo de exportación: {str(e)}")

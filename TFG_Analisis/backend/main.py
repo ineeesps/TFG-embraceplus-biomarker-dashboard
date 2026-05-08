@@ -12,7 +12,7 @@ dir_actual = os.path.dirname(os.path.abspath(__file__))
 ruta_scripts = os.path.join(dir_actual, '..', 'scripts')
 sys.path.append(ruta_scripts)
 
-from cargar_datos import cargar_csv_a_timescale
+from cargar_datos import cargar_csv_a_timescale  # type: ignore
 
 app = FastAPI(
     title="EmbracePlus API - TFG Inés",

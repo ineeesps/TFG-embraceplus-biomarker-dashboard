@@ -29,8 +29,7 @@ class ParticipantData {
     );
   }
 }
-// ----------------------
-
+}
 class ParticipantSelectionScreen extends StatefulWidget {
   final String username;
   final List<String> assignedParticipants;
@@ -102,7 +101,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
-  // --- FILTRADO ---
   List<ParticipantData> get _filteredParticipants {
     if (_searchQuery.isEmpty) return _realData;
     return _realData
@@ -181,7 +179,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-            // 1. KPIs
             Row(
               children: [
                 Expanded(child: _buildKPICard('Total Participantes', '${_realData.length}', Icons.people_outline, Colors.blue)),
@@ -193,7 +190,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
             ),
             const SizedBox(height: 32),
 
-            // 2. BUSCADOR Y VISTAS
             Row(
               children: [
                 Expanded(
@@ -242,7 +238,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
             ),
             const SizedBox(height: 24),
 
-            // 3. MAIN CONTENT
             Expanded(
               child: _filteredParticipants.isEmpty
                   ? Center(
@@ -314,7 +309,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
-  // --- OPTION A: GRID VIEW ---
   Widget _buildGridView() {
     return GridView.builder(
       itemCount: _filteredParticipants.length,
@@ -322,7 +316,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
         maxCrossAxisExtent: 300,
         mainAxisSpacing: 24,
         crossAxisSpacing: 24,
-        mainAxisExtent: 220, // Altura fija de tarjeta
+        mainAxisExtent: 220,
       ),
       itemBuilder: (context, index) {
         final data = _filteredParticipants[index];
@@ -390,7 +384,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
-  // --- OPTION B: TABLE VIEW ---
   Widget _buildTableView() {
     return LayoutBuilder(
       builder: (context, constraints) {

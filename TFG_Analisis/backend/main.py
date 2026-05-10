@@ -273,6 +273,56 @@ async def consultar_datos(id: str, investigador: str, start: str = None, end: st
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/participante/{id}")
+async def eliminar_participante(id: str, investigador: str):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        
+        # Eliminar de la base de datos
+        cur.execute("DELETE FROM biomarcadores WHERE participant_id = %s AND investigador = %s", (id, investigador))
+        conn.commit()
+        
+        # Eliminar de la lista en memoria si existe
+        if investigador in INVESTIGADORES and id in INVESTIGADORES[investigador]["participantes"]:
+            INVESTIGADORES[investigador]["participantes"].remove(id)
+            
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": f"Participante {id} eliminado correctamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/participante/{id}/renombrar")
+async def renombrar_participante(id: str, nuevo_id: str, investigador: str):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        
+        # Comprobar si el nuevo ID ya existe para este investigador
+        cur.execute("SELECT 1 FROM biomarcadores WHERE participant_id = %s AND investigador = %s LIMIT 1", (nuevo_id, investigador))
+        if cur.fetchone() is not None:
+            raise HTTPException(status_code=409, detail=f"El ID '{nuevo_id}' ya está en uso.")
+
+        # Actualizar base de datos
+        cur.execute("""
+            UPDATE biomarcadores 
+            SET participant_id = %s 
+            WHERE participant_id = %s AND investigador = %s
+        """, (nuevo_id, id, investigador))
+        conn.commit()
+        
+        # Actualizar memoria
+        if investigador in INVESTIGADORES and id in INVESTIGADORES[investigador]["participantes"]:
+            idx = INVESTIGADORES[investigador]["participantes"].index(id)
+            INVESTIGADORES[investigador]["participantes"][idx] = nuevo_id
+            
+        cur.close()
+        conn.close()
+        return {"status": "success", "new_id": nuevo_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/participante/{id}/exportar")
 async def exportar_datos(id: str, bucket_size: str = '1 minute'):
     from fastapi.responses import StreamingResponse

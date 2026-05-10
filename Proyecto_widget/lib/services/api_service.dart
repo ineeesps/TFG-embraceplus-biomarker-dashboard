@@ -91,4 +91,24 @@ class ApiService {
       throw Exception('Error al subir CSV: $responseData');
     }
   }
+
+  Future<void> deleteParticipant(String participantId, String username) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/participante/$participantId?investigador=$username'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Error al eliminar participante: ${response.body}');
+    }
+  }
+
+  Future<void> renameParticipant(String oldId, String newId, String username) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/participante/$oldId/renombrar?nuevo_id=$newId&investigador=$username'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Error al renombrar: ${response.body}');
+    }
+  }
 }

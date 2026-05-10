@@ -95,8 +95,8 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
-  void _showUploadModal() {
-    final TextEditingController idController = TextEditingController();
+  void _showUploadModal({String? prefilledId}) {
+    final TextEditingController idController = TextEditingController(text: prefilledId);
     bool isUploading = false;
     String statusMessage = '';
     String errorMessage = '';
@@ -120,7 +120,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                     const SizedBox(height: 8),
                     TextField(
                       controller: idController,
-                      enabled: !isUploading,
+                      enabled: !isUploading && prefilledId == null,
                       decoration: InputDecoration(
                         hintText: 'Ej: nuevo_participante_01',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -232,6 +232,102 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
     );
+  }
+
+  Future<void> _deleteParticipant(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Eliminar Participante', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        content: Text('¿Estás seguro de que quieres eliminar a $id? Esta acción borrará todos sus datos clínicos de forma permanente.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ELIMINAR', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService().deleteParticipant(id, widget.username);
+        _loadData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Participante eliminado correctamente')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        }
+      }
+    }
+  }
+
+  void _showEditOptions(String id) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Gestionar Participante: $id', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined, color: primaryBlue),
+              title: const Text('Renombrar Participante'),
+              onTap: () {
+                Navigator.pop(context);
+                _showRenameDialog(id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload_file_outlined, color: Color(0xFF0F766E)),
+              title: const Text('Subir más datos (CSV)'),
+              onTap: () {
+                Navigator.pop(context);
+                _showUploadModal(prefilledId: id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRenameDialog(String oldId) async {
+    final controller = TextEditingController(text: oldId);
+    final newId = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renombrar Participante'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Nuevo ID'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (newId != null && newId.isNotEmpty && newId != oldId) {
+      try {
+        await ApiService().renameParticipant(oldId, newId, widget.username);
+        _loadData();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        }
+      }
+    }
   }
 
   List<ParticipantData> get _filteredParticipants {
@@ -504,24 +600,38 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                   )
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildDataRow(Icons.date_range, data.dateRange),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               _buildDataRow(Icons.timer_outlined, '${data.totalHours} horas registradas'),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               _buildDataRow(Icons.data_usage, 'Calidad: ${data.compliance.toStringAsFixed(1)}%'),
               const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => _navigateToDashboard(data.id),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F766E),
-                    side: const BorderSide(color: Color(0xFF0F766E)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _navigateToDashboard(data.id),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0F766E),
+                        side: const BorderSide(color: Color(0xFF0F766E)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text('DASHBOARD', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                  child: Text('VER DASHBOARD', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.blueGrey),
+                    onPressed: () => _showEditOptions(data.id),
+                    tooltip: 'Editar',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+                    onPressed: () => _deleteParticipant(data.id),
+                    tooltip: 'Eliminar',
+                  ),
+                ],
               ),
             ],
           ),
@@ -566,7 +676,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                         DataColumn(label: Text('Horas', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
                         DataColumn(label: Text('Fechas', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
                       ],
-                      const DataColumn(label: SizedBox.shrink()),
+                      const DataColumn(label: Text('Acciones', style: TextStyle(fontWeight: FontWeight.bold))),
                     ],
                     rows: _filteredParticipants.map((data) {
                       final badgeConfig = _getBadgeConfig(data.status);
@@ -599,18 +709,25 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                             DataCell(Text(data.dateRange, style: GoogleFonts.inter(color: Colors.grey.shade700))),
                           ],
                           DataCell(
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: OutlinedButton(
-                                onPressed: () => _navigateToDashboard(data.id),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF0F766E),
-                                  side: const BorderSide(color: Color(0xFF0F766E)),
-                                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.analytics_outlined, color: Color(0xFF0F766E), size: 20),
+                                  onPressed: () => _navigateToDashboard(data.id),
+                                  tooltip: 'Ver Dashboard',
                                 ),
-                                child: Text('VER DASHBOARD', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                              ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey, size: 20),
+                                  onPressed: () => _showEditOptions(data.id),
+                                  tooltip: 'Editar/Subir',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                  onPressed: () => _deleteParticipant(data.id),
+                                  tooltip: 'Eliminar',
+                                ),
+                              ],
                             ),
                           ),
                         ],

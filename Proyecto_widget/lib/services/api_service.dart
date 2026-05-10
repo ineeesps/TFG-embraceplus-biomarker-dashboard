@@ -68,10 +68,10 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> uploadCsv(String participantId, List<int> bytes, String fileName) async {
+  Future<Map<String, dynamic>> uploadCsv(String participantId, String username, List<int> bytes, String fileName) async {
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('$baseUrl/participante/$participantId/cargar'),
+      Uri.parse('$baseUrl/participante/$participantId/cargar?investigador=$username'),
     );
     
     request.files.add(

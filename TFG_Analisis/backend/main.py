@@ -172,10 +172,14 @@ async def resumen_pacientes(username: str):
 # ENDPOINT DE INGESTA REAL
 # ==========================================
 @app.post("/participante/{id}/cargar")
-async def cargar_archivo_automatico(id: str, file: UploadFile = File(...)):
+async def cargar_archivo_automatico(id: str, investigador: str = None, file: UploadFile = File(...)):
     """
     Recibe el CSV, valida su longitud mínima y delega la inyección a TimescaleDB al motor ETL.
     """
+    if investigador and investigador in INVESTIGADORES:
+        if id not in INVESTIGADORES[investigador]["participantes"]:
+            INVESTIGADORES[investigador]["participantes"].append(id)
+
     nombre_archivo = file.filename.lower()
     sensor_detectado = None
 

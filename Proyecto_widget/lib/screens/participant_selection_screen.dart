@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
 import '../services/api_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 class ParticipantData {
   final String id;
@@ -91,6 +93,139 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
       MaterialPageRoute(
         builder: (context) => DashboardScreen(participantId: id.trim()),
       ),
+    );
+  }
+
+  void _showUploadModal() {
+    final TextEditingController idController = TextEditingController();
+    bool isUploading = false;
+    String statusMessage = '';
+    String errorMessage = '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              title: Text('Subir Nuevos Datos', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: primaryBlue)),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ID del Participante:', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: idController,
+                      enabled: !isUploading,
+                      decoration: InputDecoration(
+                        hintText: 'Ej: nuevo_paciente_01',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    if (isUploading) ...[
+                      const Center(child: CircularProgressIndicator(color: Color(0xFF0F766E))),
+                      const SizedBox(height: 16),
+                      Center(child: Text(statusMessage, style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13), textAlign: TextAlign.center)),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final pId = idController.text.trim();
+                            if (pId.isEmpty) {
+                              setModalState(() => errorMessage = 'Por favor, introduce un ID válido.');
+                              return;
+                            }
+                            setModalState(() => errorMessage = '');
+
+                            final result = await FilePicker.platform.pickFiles(
+                              allowMultiple: true,
+                              type: FileType.custom,
+                              allowedExtensions: ['csv'],
+                            );
+
+                            if (result != null && result.files.isNotEmpty) {
+                              setModalState(() {
+                                isUploading = true;
+                                statusMessage = 'Preparando subida de ${result.files.length} archivos...';
+                              });
+
+                              final api = ApiService();
+                              int successCount = 0;
+                              int errorCount = 0;
+
+                              for (int i = 0; i < result.files.length; i++) {
+                                final file = result.files[i];
+                                setModalState(() => statusMessage = 'Subiendo archivo ${i + 1} de ${result.files.length}...\n${file.name}');
+                                
+                                try {
+                                  List<int> bytes = file.bytes ?? [];
+                                  if (bytes.isEmpty && file.path != null) {
+                                    bytes = await File(file.path!).readAsBytes();
+                                  }
+                                  
+                                  if (bytes.isNotEmpty) {
+                                    await api.uploadCsv(pId, widget.username, bytes, file.name);
+                                    successCount++;
+                                  } else {
+                                    errorCount++;
+                                  }
+                                } catch (e) {
+                                  errorCount++;
+                                }
+                              }
+
+                              if (mounted) {
+                                Navigator.pop(context); // Cerrar modal
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Subida completada: $successCount correctos, $errorCount errores.'),
+                                    backgroundColor: errorCount == 0 ? Colors.green : Colors.orange,
+                                  )
+                                );
+                                // Recargar todo el panel
+                                setState(() {
+                                  _isLoading = true;
+                                });
+                                _loadData();
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.folder_open),
+                          label: Text('Seleccionar CSVs', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                      if (errorMessage.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(errorMessage, style: GoogleFonts.inter(color: Colors.red, fontSize: 13)),
+                      ]
+                    ]
+                  ],
+                ),
+              ),
+              actions: [
+                if (!isUploading)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancelar', style: GoogleFonts.inter(color: Colors.grey.shade600)),
+                  ),
+              ],
+            );
+          }
+        );
+      }
     );
   }
 
@@ -232,6 +367,19 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                       Container(width: 1, height: 40, color: Colors.grey.shade300),
                       _buildToggleButton(Icons.table_rows_rounded, false),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                ElevatedButton.icon(
+                  onPressed: _showUploadModal,
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: Text('Subir Paciente', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E), // Teal
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
                   ),
                 ),
               ],

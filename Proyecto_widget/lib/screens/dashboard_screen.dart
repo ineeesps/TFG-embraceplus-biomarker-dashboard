@@ -7,6 +7,8 @@ import '../providers/dashboard_provider.dart';
 import '../models/biomarker.dart';
 import '../widgets/quality_legend.dart';
 
+/// [DashboardScreen] Visualización avanzada de biomarcadores para un participante.
+/// Implementa gráficas interactivas, estadísticas descriptivas y análisis de calidad.
 class DashboardScreen extends StatefulWidget {
   final String participantId;
   final String username;

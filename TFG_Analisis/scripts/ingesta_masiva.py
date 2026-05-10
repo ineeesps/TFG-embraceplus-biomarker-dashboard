@@ -2,6 +2,12 @@ import os
 import glob
 from cargar_datos import cargar_csv_a_timescale
 
+"""
+Script de utilidad para la ingesta masiva inicial de datos.
+Permite poblar la base de datos TimescaleDB a partir de las carpetas 
+locales de los participantes de forma automatizada.
+"""
+
 PATRONES_SENSORES = {
     'temperature': 'temperature', 'eda': 'eda', 'pulse-rate': 'pulse_rate',
     'respiratory-rate': 'respiratory_rate', 'accelerometers-std': 'accelerometer_std',

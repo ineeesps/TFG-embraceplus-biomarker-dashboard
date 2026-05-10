@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/biomarker.dart';
 import '../services/api_service.dart';
 
+/// [DashboardProvider] gestiona el estado de la visualización de biomarcadores.
+/// Maneja la carga de datos, el filtrado por rango horario y la superposición de sensores.
 class DashboardProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
   List<Biomarker> _metrics = [];

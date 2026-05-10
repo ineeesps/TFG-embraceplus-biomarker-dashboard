@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+/// [QualityLegend] Widget informativo que explica la codificación de colores 
+/// según la calidad de la señal clínica detectada.
 class QualityLegend extends StatelessWidget {
   const QualityLegend({super.key});
 

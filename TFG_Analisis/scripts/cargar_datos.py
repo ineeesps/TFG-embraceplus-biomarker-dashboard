@@ -4,10 +4,17 @@ from psycopg2 import extras
 import os
 import math
 
+"""
+Motor de Ingesta ETL para datos de EmbracePlus.
+Este script implementa el patrón Factory y Adapter para procesar diferentes tipos 
+de biomarcadores con lógicas de mapeo específicas.
+"""
+
 class SensorAdapter:
     def map_row(self, row, dataframe):
         raise NotImplementedError
 
+# Adaptador base para sensores con mapeo directo de columna.
 class DefaultAdapter(SensorAdapter):
     def __init__(self, target_column):
         self.target_column = target_column
@@ -15,6 +22,7 @@ class DefaultAdapter(SensorAdapter):
     def map_row(self, row, dataframe):
         return getattr(row, self.target_column) if self.target_column in dataframe.columns else None
 
+# Adaptador específico para Acticounts (Calcula magnitud vectorial desde ejes X, Y, Z).
 class ActicountsAdapter(SensorAdapter):
     def map_row(self, row, dataframe):
         try:
@@ -27,6 +35,7 @@ class ActicountsAdapter(SensorAdapter):
             pass
         return None
 
+# Adaptador para variables categóricas (Mapeo de texto a valores numéricos discretos).
 class CategoricalAdapter(SensorAdapter):
     def __init__(self, target_column, category_map):
         self.target_column = target_column
@@ -65,6 +74,7 @@ class BodyPositionAdapter(SensorAdapter):
             return self.category_map[valor_raw.lower()]
         return None
 
+# Factoría para instanciar el adaptador correcto según el tipo de sensor detectado.
 class AdapterFactory:
     @staticmethod
     def get_adapter(tipo_sensor):
@@ -95,6 +105,10 @@ class AdapterFactory:
             return DefaultAdapter(mapa_columnas.get(tipo_sensor))
 
 def _parse_hardware_state(calidad, missing_reason, valor_original=None):
+    """
+    Analiza los flags de calidad y las razones de pérdida de datos.
+    Detecta estados específicos del hardware (memoria llena, temperatura crítica, etc).
+    """
     if pd.isnull(missing_reason):
         return calidad
     
@@ -115,6 +129,9 @@ def _parse_hardware_state(calidad, missing_reason, valor_original=None):
     return flag_result if missing_str != 'good' else calidad
 
 def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigador='ines'):
+    """
+    Función principal de ingesta: Lee el CSV, aplica adaptadores e inserta en TimescaleDB.
+    """
     dir_actual = os.path.dirname(os.path.abspath(__file__))
     ruta_entrada = os.path.join(dir_actual, '..', 'data', archivo_nombre)
 

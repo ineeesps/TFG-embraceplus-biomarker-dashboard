@@ -6,6 +6,8 @@ import '../services/api_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
+/// [ParticipantData] representa la información resumida de un participante
+/// para su visualización en la lista principal.
 class ParticipantData {
   final String id;
   final double compliance;
@@ -32,6 +34,8 @@ class ParticipantData {
   }
 }
 
+/// Pantalla principal de selección de participantes.
+/// Permite buscar, filtrar, subir datos nuevos y acceder al dashboard de cada paciente.
 class ParticipantSelectionScreen extends StatefulWidget {
   final String username;
   final List<String> assignedParticipants;
@@ -50,6 +54,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
 
   List<ParticipantData> _realData = [];
 
+  // Configuración estética del dashboard (Clinical Research Theme)
   static const Color primaryBlue = Color(0xFF0F172A);
   static const Color bgColor = Color(0xFFF1F5F9);
   
@@ -59,6 +64,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     _loadData();
   }
 
+  /// Carga los datos de los participantes asignados al investigador actual
   Future<void> _loadData() async {
     try {
       final api = ApiService();
@@ -85,6 +91,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     super.dispose();
   }
 
+  /// Navega al dashboard de un participante específico
   void _navigateToDashboard(String id) {
     if (id.trim().isEmpty) return;
     Navigator.push(
@@ -95,6 +102,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
+  /// Muestra el modal para la subida de archivos CSV de un participante
   void _showUploadModal({String? prefilledId}) {
     final TextEditingController idController = TextEditingController(text: prefilledId);
     bool isUploading = false;
@@ -159,26 +167,83 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                               int successCount = 0;
                               int errorCount = 0;
 
-                              for (int i = 0; i < result.files.length; i++) {
-                                final file = result.files[i];
-                                setModalState(() => statusMessage = 'Subiendo archivo ${i + 1} de ${result.files.length}...\n${file.name}');
-                                
-                                try {
-                                  List<int> bytes = file.bytes ?? [];
-                                  if (bytes.isEmpty && file.path != null) {
-                                    bytes = await File(file.path!).readAsBytes();
-                                  }
+                                for (int i = 0; i < result.files.length; i++) {
+                                  final file = result.files[i];
+                                  setModalState(() => statusMessage = 'Subiendo archivo ${i + 1} de ${result.files.length}...\n${file.name}');
                                   
-                                  if (bytes.isNotEmpty) {
-                                    await api.uploadCsv(pId, widget.username, bytes, file.name);
-                                    successCount++;
-                                  } else {
+                                  try {
+                                    // Detectar tipo de sensor
+                                    String? sensorType;
+                                    final fileNameLower = file.name.toLowerCase();
+                                    final patrones = {
+                                      'temperature': 'temperature', 'eda': 'eda', 'pulse-rate': 'pulse_rate',
+                                      'respiratory-rate': 'respiratory_rate', 'accelerometers-std': 'accelerometer_std',
+                                      'prv': 'prv', 'step-counts': 'step_count', 'met': 'met',
+                                      'activity-intensity': 'activity_intensity', 'wearing-detection': 'wearing_detection',
+                                      'activity-classification': 'activity_class', 'activity-counts': 'activity_counts',
+                                      'actigraphy-counts': 'actigraphy_vector', 'body-position': 'body_position',
+                                      'acticounts': 'acticounts_total', 'sleep-detection': 'sleep_detection'
+                                    };
+                                    
+                                    for (var entry in patrones.entries) {
+                                      if (fileNameLower.contains(entry.key)) {
+                                        sensorType = entry.value;
+                                        break;
+                                      }
+                                    }
+
+                                    bool shouldReplace = false;
+                                    if (sensorType != null) {
+                                      final exists = await api.checkSensorDataExists(pId, sensorType, widget.username);
+                                      if (exists) {
+                                        // Pausamos la subida para preguntar
+                                        setModalState(() => isUploading = false);
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Archivo ya existente'),
+                                            content: Text('Este archivo ya existe o el participante ya tiene datos de $sensorType. ¿Desea reemplazarlo o cancelamos?'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCELAR')),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, true),
+                                                child: const Text('REEMPLAZAR', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        
+                                        if (confirm != true) {
+                                          setModalState(() {
+                                            isUploading = true;
+                                            statusMessage = 'Saltando ${file.name}...';
+                                          });
+                                          continue;
+                                        }
+                                        shouldReplace = true;
+                                        setModalState(() {
+                                          isUploading = true;
+                                          statusMessage = 'Reemplazando datos de ${file.name}...';
+                                        });
+                                      }
+                                    }
+
+                                    List<int> bytes = file.bytes ?? [];
+                                    if (bytes.isEmpty && file.path != null) {
+                                      bytes = await File(file.path!).readAsBytes();
+                                    }
+                                    
+                                    if (bytes.isNotEmpty) {
+                                      await api.uploadCsv(pId, widget.username, bytes, file.name, replace: shouldReplace);
+                                      successCount++;
+                                    } else {
+                                      errorCount++;
+                                    }
+                                  } catch (e) {
                                     errorCount++;
                                   }
-                                } catch (e) {
-                                  errorCount++;
                                 }
-                              }
 
                               if (mounted) {
                                 Navigator.pop(context);
@@ -227,6 +292,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
+  /// Cierra la sesión y vuelve a la pantalla de login
   void _logout() {
     Navigator.pushReplacement(
       context,
@@ -234,6 +300,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
+  /// Elimina un participante y todos sus datos asociados
   Future<void> _deleteParticipant(String id) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -265,6 +332,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     }
   }
 
+  /// Muestra las opciones de edición (renombrar o subir más datos)
   void _showEditOptions(String id) {
     showModalBottomSheet(
       context: context,
@@ -286,7 +354,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
             ),
             ListTile(
               leading: const Icon(Icons.upload_file_outlined, color: Color(0xFF0F766E)),
-              title: const Text('Subir más datos (CSV)'),
+              title: const Text('Subir nuevos datos (CSV)'),
               onTap: () {
                 Navigator.pop(context);
                 _showUploadModal(prefilledId: id);
@@ -298,6 +366,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
+  /// Diálogo para cambiar el identificador de un participante
   Future<void> _showRenameDialog(String oldId) async {
     final controller = TextEditingController(text: oldId);
     final newId = await showDialog<String>(

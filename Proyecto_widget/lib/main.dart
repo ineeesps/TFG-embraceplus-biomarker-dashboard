@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'providers/dashboard_provider.dart';
 
+/// Punto de entrada principal de la aplicación EmbracePlus Dashboard.
+/// Configura el estado global mediante Provider y el tema visual clínico.
 void main() {
   runApp(
     MultiProvider(

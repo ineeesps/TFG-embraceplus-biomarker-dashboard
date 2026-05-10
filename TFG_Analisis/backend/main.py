@@ -14,10 +14,12 @@ sys.path.append(ruta_scripts)
 from cargar_datos import cargar_csv_a_timescale  # type: ignore
 
 app = FastAPI(
-    title="EmbracePlus API - TFG",
-    version="2.0.0"
+    title="EmbracePlus API - Plataforma de Gestión de Biomarcadores",
+    description="API para la ingesta, gestión y consulta de datos clínicos procedentes de dispositivos EmbracePlus.",
+    version="2.1.0"
 )
 
+# Configuración de conexión a la base de datos TimescaleDB
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "database": os.getenv("DB_NAME", "tfg_embrace"),
@@ -26,6 +28,7 @@ DB_CONFIG = {
     "port": os.getenv("DB_PORT", "5432")
 }
 
+# Mapeo de patrones de nombres de archivo a tipos de sensores en la BD
 PATRONES_SENSORES = {
     'temperature': 'temperature', 'eda': 'eda', 'pulse-rate': 'pulse_rate',
     'respiratory-rate': 'respiratory_rate', 'accelerometers-std': 'accelerometer_std',
@@ -40,6 +43,7 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+# Datos de ejemplo para investigadores (Simulación de gestión de usuarios)
 INVESTIGADORES = {
     "alberto": {
         "password": "123",
@@ -53,6 +57,9 @@ INVESTIGADORES = {
 
 @app.post("/login")
 async def login(req: LoginRequest):
+    """
+    Autenticación de investigadores y obtención de participantes asignados.
+    """
     user = req.username
     if user in INVESTIGADORES and INVESTIGADORES[user]["password"] == req.password:
         return {
@@ -148,9 +155,10 @@ async def resumen_participantes(username: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/participante/{id}/cargar")
-async def cargar_archivo_automatico(id: str, investigador: str = None, file: UploadFile = File(...)):
+async def cargar_archivo_automatico(id: str, investigador: str = None, reemplazar: bool = False, file: UploadFile = File(...)):
     """
-    Procesa la subida de un CSV y delega la ingesta al motor ETL.
+    Endpoint para la subida de archivos CSV. 
+    Realiza la validación del sensor y delega la ingesta al motor ETL.
     """
     if investigador and investigador in INVESTIGADORES:
         if id not in INVESTIGADORES[investigador]["participantes"]:
@@ -176,6 +184,24 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, file: Upl
     
     if not sensor_detectado:
         raise HTTPException(status_code=400, detail="Tipo de sensor no reconocido")
+
+    # Si se solicita reemplazar, borramos los datos previos de ese sensor para ese participante
+    if reemplazar:
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cur = conn.cursor()
+            cur.execute(
+                "DELETE FROM biomarcadores WHERE participant_id = %s AND sensor_type = %s AND investigador = %s",
+                (id, sensor_detectado, investigador)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            if 'conn' in locals() and conn:
+                conn.rollback()
+                conn.close()
+            # Se loguearía el error pero permitimos continuar con la subida
 
     try:
         contenido = await file.read()
@@ -220,8 +246,38 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, file: Upl
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
+@app.get("/participante/{id}/sensor/{sensor_type}/existe")
+async def verificar_existencia_sensor(id: str, sensor_type: str, investigador: str):
+    """
+    Verifica si ya existen registros para un sensor y participante específico.
+    """
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        
+        # Validar si el sensor_type es uno de los permitidos
+        if sensor_type not in PATRONES_SENSORES.values():
+             # Intentamos buscar si es un nombre de archivo (ej: step-counts)
+             sensor_type = PATRONES_SENSORES.get(sensor_type, sensor_type)
+
+        cur.execute(
+            "SELECT 1 FROM biomarcadores WHERE participant_id = %s AND sensor_type = %s AND investigador = %s LIMIT 1",
+            (id, sensor_type, investigador)
+        )
+        existe = cur.fetchone() is not None
+        
+        cur.close()
+        conn.close()
+        
+        return {"id": id, "sensor_type": sensor_type, "existe": existe}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/participante/{id}/metricas")
 async def consultar_datos(id: str, investigador: str, start: str = None, end: str = None, bucket_size: str = '30 seconds'):
+    """
+    Consulta de series temporales de biomarcadores con agregación dinámica (Downsampling).
+    """
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -273,6 +329,9 @@ async def consultar_datos(id: str, investigador: str, start: str = None, end: st
 
 @app.delete("/participante/{id}")
 async def eliminar_participante(id: str, investigador: str):
+    """
+    Eliminación completa de un participante y sus registros clínicos.
+    """
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
@@ -293,6 +352,9 @@ async def eliminar_participante(id: str, investigador: str):
 
 @app.put("/participante/{id}/renombrar")
 async def renombrar_participante(id: str, nuevo_id: str, investigador: str):
+    """
+    Cambio de identificador de participante manteniendo la integridad de los datos históricos.
+    """
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
@@ -323,6 +385,9 @@ async def renombrar_participante(id: str, nuevo_id: str, investigador: str):
 
 @app.get("/participante/{id}/exportar")
 async def exportar_datos(id: str, bucket_size: str = '1 minute'):
+    """
+    Exportación de datos agregados en formato CSV para análisis externo.
+    """
     from fastapi.responses import StreamingResponse
     try:
         conn = psycopg2.connect(**DB_CONFIG)

@@ -68,10 +68,10 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> uploadCsv(String participantId, String username, List<int> bytes, String fileName) async {
+  Future<Map<String, dynamic>> uploadCsv(String participantId, String username, List<int> bytes, String fileName, {bool replace = false}) async {
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('$baseUrl/participante/$participantId/cargar?investigador=$username'),
+      Uri.parse('$baseUrl/participante/$participantId/cargar?investigador=$username&reemplazar=$replace'),
     );
     
     request.files.add(
@@ -89,6 +89,21 @@ class ApiService {
       return json.decode(responseData);
     } else {
       throw Exception('Error al subir CSV: $responseData');
+    }
+  }
+
+  Future<bool> checkSensorDataExists(String participantId, String sensorType, String username) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/participante/$participantId/sensor/$sensorType/existe?investigador=$username'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['existe'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 

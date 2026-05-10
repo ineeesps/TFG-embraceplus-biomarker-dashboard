@@ -144,7 +144,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                             }
                             setModalState(() => errorMessage = '');
 
-                            final result = await FilePicker.platform.pickFiles(
+                            final result = await FilePicker.pickFiles(
                               allowMultiple: true,
                               type: FileType.custom,
                               allowedExtensions: ['csv'],

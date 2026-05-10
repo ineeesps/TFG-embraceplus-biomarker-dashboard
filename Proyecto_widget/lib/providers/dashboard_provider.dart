@@ -52,13 +52,11 @@ class DashboardProvider with ChangeNotifier {
 
       _metrics = await _apiService.getMetrics(participantId, username, startTime: startStr, endTime: endStr);
       
-      // Store the session date from the first payload if not set, or update if we removed the filter
       if (_metrics.isNotEmpty && _startHour == null && _endHour == null) {
         _sessionDate = _metrics.first.time.toUtc();
       }
       
     } catch (e) {
-
       _error = e.toString();
     } finally {
       _isLoading = false;

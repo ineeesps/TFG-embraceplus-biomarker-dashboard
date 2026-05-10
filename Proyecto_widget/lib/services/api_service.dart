@@ -61,10 +61,10 @@ class ApiService {
         final List<dynamic> metricsJson = data['metricas'];
         return metricsJson.map((json) => Biomarker.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load metrics: ${response.statusCode}');
+        throw Exception('Error al cargar métricas: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error connecting to backend: $e');
+      throw Exception('Error al conectar con el servidor: $e');
     }
   }
 
@@ -88,7 +88,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(responseData);
     } else {
-      throw Exception('Upload failed: $responseData');
+      throw Exception('Error al subir CSV: $responseData');
     }
   }
 }

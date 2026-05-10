@@ -32,7 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Investigación: ${widget.participantId}'),
+        title: Text('Paciente: ${widget.participantId}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.download_rounded),
@@ -100,7 +100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Icon(Icons.history, size: 64, color: colorScheme.primary.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
-          const Text('No hay datos en este rango', style: TextStyle(color: Colors.white54)),
+          const Text('Sin datos en este rango', style: TextStyle(color: Colors.white54)),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             icon: const Icon(Icons.calendar_today_rounded, size: 18),
@@ -163,10 +163,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _exportData(BuildContext context) {
-    // Export functionality would go here
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Descargando CSV: investigation_${widget.participantId}.csv'),
+        content: Text('Exportando datos de ${widget.participantId}...'),
         backgroundColor: Colors.blue.shade900,
       ),
     );
@@ -279,7 +278,7 @@ class BiomarkerCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _StatItem(label: 'MEAN', value: mean.toStringAsFixed(2)),
+          _StatItem(label: 'MEDIA', value: mean.toStringAsFixed(2)),
           _StatItem(label: 'SD', value: sd.toStringAsFixed(2)),
           _StatItem(label: 'MIN', value: min.toStringAsFixed(2)),
           _StatItem(label: 'MAX', value: max.toStringAsFixed(2)),
@@ -289,13 +288,13 @@ class BiomarkerCard extends StatelessWidget {
   }
 
   String _formatSensorTitle(String sensorType) {
-    if (sensorType == 'accelerometer_std') return 'ACCELEROMETER (STD)';
+    if (sensorType == 'accelerometer_std') return 'ACELERÓMETRO (STD)';
     if (sensorType == 'acticounts_total') return 'ACTICOUNTS (TOTAL)';
     return sensorType.toUpperCase().replaceAll('_', ' ');
   }
 
   Widget _buildStatusTag(String flag) {
-    Color color = const Color(0xFF10B981); // Green/Emerald
+    Color color = const Color(0xFF10B981);
     String label = 'NORMAL';
     if (flag == 'worn_during_motion') { color = const Color(0xFFF59E0B); label = 'MOVIMIENTO'; }
     else if (flag == 'worn_with_low_signal_quality') { color = const Color(0xFFEF4444); label = 'SEÑAL BAJA'; }
@@ -326,7 +325,7 @@ class BiomarkerCard extends StatelessWidget {
       List<FlSpot> currentSegment = [];
       String currentQuality = displayData[0].qualityFlag;
       DateTime? lastTime = displayData[0].time;
-      const int splitThresholdMs = 5 * 60 * 1000; // 5 minutos
+      const int splitThresholdMs = 5 * 60 * 1000;
 
       for (int i = 0; i < displayData.length; i++) {
         final currentDT = displayData[i].time;
@@ -355,7 +354,6 @@ class BiomarkerCard extends StatelessWidget {
       }
     }
 
-    // Renderizar segmentos de datos reales
     bars.addAll(segments.asMap().entries.map((entry) {
       final spots = entry.value;
       final quality = segmentQualities[entry.key];
@@ -383,18 +381,16 @@ class BiomarkerCard extends StatelessWidget {
       );
     }));
 
-    // Lógica de Interpolación (Puenteado de Gaps cortos)
-    const int gapThresholdMs = 10 * 60 * 1000; // 10 minutos
+    const int gapThresholdMs = 10 * 60 * 1000;
     for (int i = 0; i < segments.length - 1; i++) {
       final lastSpotOfCurrent = segments[i].last;
       final firstSpotOfNext = segments[i+1].first;
       
-      // Solo interpolar si el gap es menor al umbral
       if ((firstSpotOfNext.x - lastSpotOfCurrent.x).abs() < gapThresholdMs) {
         bars.add(LineChartBarData(
           spots: [lastSpotOfCurrent, firstSpotOfNext],
           isCurved: false,
-          color: const Color(0xFF94A3B8).withValues(alpha: 0.6), // Sincronizado con Leyenda
+          color: const Color(0xFF94A3B8).withValues(alpha: 0.6),
           barWidth: 1.5,
           dashArray: [4, 4],
           dotData: const FlDotData(show: false),
@@ -456,7 +452,7 @@ class BiomarkerCard extends StatelessWidget {
     }
 
     double xInterval = (maxX - minX) / 5;
-    if (xInterval <= 0) xInterval = 60000; // Al menos 1 minuto
+    if (xInterval <= 0) xInterval = 60000;
 
     return LineChartData(
       minX: minX,

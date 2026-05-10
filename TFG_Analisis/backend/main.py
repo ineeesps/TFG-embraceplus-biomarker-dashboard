@@ -7,7 +7,6 @@ import io
 import os
 import sys
 
-# Configurar path para módulos locales
 dir_actual = os.path.dirname(os.path.abspath(__file__))
 ruta_scripts = os.path.join(dir_actual, '..', 'scripts')
 sys.path.append(ruta_scripts)
@@ -15,12 +14,10 @@ sys.path.append(ruta_scripts)
 from cargar_datos import cargar_csv_a_timescale  # type: ignore
 
 app = FastAPI(
-    title="EmbracePlus API - TFG Inés",
-    description="Backend integrado con Orquestador de Ingesta",
+    title="EmbracePlus API - TFG",
     version="2.0.0"
 )
 
-# Configuración de base de datos (Docker o Local)
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "database": "tfg_embrace",
@@ -29,7 +26,6 @@ DB_CONFIG = {
     "port": "5432"
 }
 
-# Diccionario de patrones
 PATRONES_SENSORES = {
     'temperature': 'temperature', 'eda': 'eda', 'pulse-rate': 'pulse_rate',
     'respiratory-rate': 'respiratory_rate', 'accelerometers-std': 'accelerometer_std',
@@ -40,7 +36,6 @@ PATRONES_SENSORES = {
     'acticounts': 'acticounts_total', 'sleep-detection': 'sleep_detection'
 }
 
-# Modelos y mapeo de acceso para el TFG
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -69,7 +64,7 @@ async def login(req: LoginRequest):
 
 @app.get("/")
 async def root():
-    return {"status": "online", "modulo": "API TFG Inés"}
+    return {"status": "online", "modulo": "API TFG"}
 
 @app.get("/health")
 async def health():
@@ -80,14 +75,10 @@ async def health():
     except:
         return {"status": "error", "db": "disconnected"}
 
-# ==========================================
-# ENDPOINT DE RESUMEN CLÍNICO (FRONTEND)
-# ==========================================
 @app.get("/investigador/{username}/resumen_pacientes")
 async def resumen_pacientes(username: str):
     """
-    Calcula en tiempo real las estadísticas vitales de todos los pacientes 
-    de un investigador para poblar la Pantalla de Selección (Dashboard Inicial).
+    Calcula las estadísticas vitales de los pacientes de un investigador.
     """
     if username not in INVESTIGADORES:
         raise HTTPException(status_code=404, detail="Investigador no autorizado")
@@ -123,12 +114,7 @@ async def resumen_pacientes(username: str):
                 total_hours = int(diff.total_seconds() / 3600)
             
             comp = row['compliance'] or 0.0
-            if comp >= 90:
-                status = 'ÓPTIMO'
-            elif comp >= 80:
-                status = 'REVISIÓN'
-            else:
-                status = 'CRÍTICO'
+            status = 'ÓPTIMO' if comp >= 90 else ('REVISIÓN' if comp >= 80 else 'CRÍTICO')
                 
             fecha_str = "Sin datos"
             if start and end:
@@ -139,15 +125,15 @@ async def resumen_pacientes(username: str):
                 "compliance": round(comp, 2),
                 "status": status,
                 "dateRange": fecha_str,
-                "totalHours": max(total_hours, 1) # Si grabaron algo, al menos 1 hora para no poner 0
+                "totalHours": max(total_hours, 1)
             })
             
         cur.close()
         conn.close()
         
-        # Añadir pacientes asignados que aún no han volcado datos a la base de datos
+        # Pacientes sin datos
         ids_con_datos = {p["id"] for p in pacientes_data}
-        for p_id in participantes:
+        for p_id in INVESTIGADORES[username]["participantes"]:
             if p_id not in ids_con_datos:
                 pacientes_data.append({
                     "id": p_id,
@@ -163,18 +149,13 @@ async def resumen_pacientes(username: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==========================================
-# ENDPOINT DE INGESTA REAL
-# ==========================================
 @app.post("/participante/{id}/cargar")
 async def cargar_archivo_automatico(id: str, investigador: str = None, file: UploadFile = File(...)):
     """
-    Recibe el CSV, valida su longitud mínima y delega la inyección a TimescaleDB al motor ETL.
+    Procesa la subida de un CSV y delega la ingesta al motor ETL.
     """
     if investigador and investigador in INVESTIGADORES:
         if id not in INVESTIGADORES[investigador]["participantes"]:
-            # Seguridad de Datos: Evitar colisión de IDs entre diferentes investigadores
-            # Comprobamos en base de datos si el participante ya existe (registrado previamente o por otro usuario)
             try:
                 conn = psycopg2.connect(**DB_CONFIG)
                 cur = conn.cursor()
@@ -182,10 +163,10 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, file: Upl
                 if cur.fetchone() is not None:
                     raise HTTPException(
                         status_code=409, 
-                        detail=f"Error de Seguridad: El identificador '{id}' ya está siendo usado por otro paciente en el sistema."
+                        detail=f"El identificador '{id}' ya está en uso por otro paciente."
                     )
             except psycopg2.Error:
-                pass  # Si hay error temporal de BD, delegamos la responsabilidad a TimescaleDB más adelante
+                pass
             finally:
                 if 'conn' in locals() and conn:
                     conn.close()
@@ -193,51 +174,38 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, file: Upl
             INVESTIGADORES[investigador]["participantes"].append(id)
 
     nombre_archivo = file.filename.lower()
-    sensor_detectado = None
-
-    # Detectar el sensor usando tus patrones
-    for patron, sensor in PATRONES_SENSORES.items():
-        if patron in nombre_archivo:
-            sensor_detectado = sensor
-            break
+    sensor_detectado = next((v for k, v in PATRONES_SENSORES.items() if k in nombre_archivo), None)
     
     if not sensor_detectado:
         raise HTTPException(status_code=400, detail="Tipo de sensor no reconocido")
 
     try:
-        # Leemos el archivo en memoria para validarlo
         contenido = await file.read()
         df = pd.read_csv(io.BytesIO(contenido), low_memory=False)
         
-        # Validación de integridad mínima del CSV (evitar archivos vacíos o incompletos)
         if len(df) <= 751:
-            raise HTTPException(status_code=400, detail="Fichero vacío o corrupto: sin datos tras fila 752")
+            raise HTTPException(status_code=400, detail="Fichero insuficiente o sin datos")
 
-        # Almacenamiento temporal para el procesado del motor ETL
-        dir_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_data = os.path.join(dir_actual, '..', 'data')
+        ruta_data = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
         os.makedirs(ruta_data, exist_ok=True) 
         
         ruta_temp = os.path.join(ruta_data, file.filename)
         with open(ruta_temp, "wb") as f:
             f.write(contenido)
         
-        # Ejecución del adaptador ETL e inserción en base de datos
-        cargar_csv_a_timescale(file.filename, sensor_detectado, id)
+        cargar_csv_a_timescale(file.filename, sensor_detectado, id, investigador=investigador)
         
-        # Limpieza del archivo temporal
         if os.path.exists(ruta_temp):
             os.remove(ruta_temp)
 
-        # REGLA DEL 5% DE RENDIMIENTO ESENCIAL
         total_filas = len(df)
         df_invalidas = df[df['missing_value_reason'].notnull() & (df['missing_value_reason'] != '')]
         porcentaje_perdida = (len(df_invalidas) / total_filas * 100) if total_filas > 0 else 0
         alerta_integridad = porcentaje_perdida > 5.0
 
-        mensaje_final = "Datos validados e insertados correctamente en TimescaleDB"
+        mensaje = "Carga completada"
         if alerta_integridad:
-            mensaje_final += f" (ALERTA: Pérdida de integridad del {porcentaje_perdida:.2f}%)"
+            mensaje += f" (Pérdida de datos: {porcentaje_perdida:.2f}%)"
 
         return {
             "status": "success",
@@ -246,7 +214,7 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, file: Upl
             "filas_insertadas": total_filas,
             "porcentaje_perdida_datos": round(porcentaje_perdida, 2),
             "alerta_integridad_comprometida": alerta_integridad,
-            "mensaje": mensaje_final
+            "mensaje": mensaje
         }
 
     except HTTPException as http_e:
@@ -254,14 +222,8 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, file: Upl
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
-# ==========================================
-# ENDPOINTS DE LECTURA Y EXPORTACIÓN
-# ==========================================
 @app.get("/participante/{id}/metricas")
 async def consultar_datos(id: str, investigador: str, start: str = None, end: str = None, bucket_size: str = '30 seconds'):
-    """
-    Retorna datos resampleados para visualización con filtrado temporal opcional.
-    """
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -313,17 +275,9 @@ async def consultar_datos(id: str, investigador: str, start: str = None, end: st
 
 @app.get("/participante/{id}/exportar")
 async def exportar_datos(id: str, bucket_size: str = '1 minute'):
-    """
-    Módulo de Exportación Unificada:
-    Genera un CSV con todas las métricas alineadas temporalmente (pivotado)
-    para facilitar la investigación clínica en herramientas como SPSS o R.
-    """
-    import io
     from fastapi.responses import StreamingResponse
     try:
         conn = psycopg2.connect(**DB_CONFIG)
-        
-        # Descargamos los datos ya resampleados para alinear las frecuencias
         query = f"""
             SELECT 
                 time_bucket(CAST('{bucket_size}' AS INTERVAL), time) AS timestamp,
@@ -338,16 +292,13 @@ async def exportar_datos(id: str, bucket_size: str = '1 minute'):
             GROUP BY timestamp, sensor_type
             ORDER BY timestamp ASC
         """
-        
         df = pd.read_sql_query(query, conn)
         conn.close()
 
         if df.empty:
-            raise HTTPException(status_code=404, detail="No hay datos para este participante")
+            raise HTTPException(status_code=404, detail="Sin datos")
 
-        # Alineación Temporal: Convertimos filas de sensores en columnas
         df_pivot = df.pivot(index='timestamp', columns='sensor_type', values='value').reset_index()
-        
         output = io.StringIO()
         df_pivot.to_csv(output, index=False)
         output.seek(0)
@@ -355,7 +306,7 @@ async def exportar_datos(id: str, bucket_size: str = '1 minute'):
         return StreamingResponse(
             output,
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=dataset_unificado_{id}.csv"}
+            headers={"Content-Disposition": f"attachment; filename=export_{id}.csv"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el módulo de exportación: {str(e)}")

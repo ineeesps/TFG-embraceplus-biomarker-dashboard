@@ -4,9 +4,6 @@ from psycopg2 import extras
 import os
 import math
 
-# ==========================================
-# PATRÓN ADAPTER: GESTIÓN ESCALABLE DE SENSORES
-# ==========================================
 class SensorAdapter:
     def map_row(self, row, dataframe):
         raise NotImplementedError
@@ -26,7 +23,7 @@ class ActicountsAdapter(SensorAdapter):
             z = getattr(row, 'acticounts_z_axis', None)
             if pd.notnull(x) and pd.notnull(y) and pd.notnull(z):
                 return math.sqrt(float(x)**2 + float(y)**2 + float(z)**2)
-        except Exception:
+        except:
             pass
         return None
 
@@ -51,7 +48,7 @@ class SleepAdapter(SensorAdapter):
                 elif 100 <= v <= 299: return 1  # Rest/Sleep
                 elif 300 <= v <= 399: return 2  # Interruption
                 elif v == 400: return 3  # Reserved
-            except ValueError:
+            except:
                 pass
         return None
 
@@ -60,7 +57,6 @@ class BodyPositionAdapter(SensorAdapter):
         self.category_map = {'sitting_reclining_lying': 0, 'standing': 1, 'left': 2, 'right': 3, 'prone': 4, 'supine': 5, 'miscellaneous': 6}
 
     def map_row(self, row, dataframe):
-        # El hardware es ambidiestro, leemos ambas columnas posibles
         valor_raw = getattr(row, 'body_position_left', None) if 'body_position_left' in dataframe.columns else None
         if pd.isnull(valor_raw):
             valor_raw = getattr(row, 'body_position_right', None) if 'body_position_right' in dataframe.columns else None
@@ -98,10 +94,6 @@ class AdapterFactory:
             }
             return DefaultAdapter(mapa_columnas.get(tipo_sensor))
 
-
-# ==========================================
-# PARSEO DE ESTADOS CRÍTICOS DE HARDWARE
-# ==========================================
 def _parse_hardware_state(calidad, missing_reason, valor_original=None):
     if pd.isnull(missing_reason):
         return calidad
@@ -117,29 +109,21 @@ def _parse_hardware_state(calidad, missing_reason, valor_original=None):
         elif ' X' in missing_str or '(X)' in missing_str or 'Desconexión' in missing_str:
             flag_result = 'device_not_recording | Hardware: Disconnected'
             
-    # Si tenemos el valor cualitativo original (ej. "walking"), lo añadimos para auditoría
     if isinstance(valor_original, str):
         flag_result = f"{flag_result} | {valor_original}"
         
     return flag_result if missing_str != 'good' else calidad
 
-# ==========================================
-# MOTOR PRINCIPAL
-# ==========================================
 def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigador='ines'):
-    if os.path.exists(archivo_nombre):
-        ruta_entrada = archivo_nombre
-    else:
-        dir_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_entrada = os.path.join(dir_actual, '..', 'data', archivo_nombre)
+    dir_actual = os.path.dirname(os.path.abspath(__file__))
+    ruta_entrada = os.path.join(dir_actual, '..', 'data', archivo_nombre)
 
     if not os.path.exists(ruta_entrada): 
-        raise FileNotFoundError(f"No se encontró el archivo: {ruta_entrada}")
+        raise FileNotFoundError(f"No encontrado: {ruta_entrada}")
 
     try:
         db_host = os.getenv("DB_HOST", "localhost")
-        db_port = os.getenv("DB_PORT", "5432")
-        conn = psycopg2.connect(dbname="tfg_embrace", user="ines", password="tfg_password", host=db_host, port=db_port)
+        conn = psycopg2.connect(dbname="tfg_embrace", user="ines", password="tfg_password", host=db_host, port="5432")
         cur = conn.cursor()
         
         df = pd.read_csv(ruta_entrada, low_memory=False)
@@ -151,15 +135,11 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
     
         for r in df.itertuples():
             tiempo = getattr(r, 'time', getattr(r, 'timestamp_iso', None))
-            
-            # Uso del Patrón Adapter
             valor_num = adapter.map_row(r, df)
             
-            # Auditoría de Calidad (Captura garantizada del missing_value_reason)
             calidad_base = getattr(r, 'quality_flag', 'good') if hasattr(r, 'quality_flag') else 'good'
             missing_reason = getattr(r, 'missing_value_reason', None)
             
-            # Identificamos el valor crudo cualitativo de forma dinámica y ambidiestra
             valor_crudo_posible = getattr(r, 'activity_class', None)
             if pd.isnull(valor_crudo_posible): valor_crudo_posible = getattr(r, 'activity_intensity', None)
             if pd.isnull(valor_crudo_posible): valor_crudo_posible = getattr(r, 'body_position_left', None)
@@ -168,11 +148,7 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
             
             calidad_final = _parse_hardware_state(calidad_base, missing_reason, valor_original=valor_crudo_posible if isinstance(valor_crudo_posible, str) else None)
 
-            # Módulo de Fiabilidad: Regla estricta de anulación de señal
-            is_bad_signal = ('device_not_recording' in str(calidad_final) or 
-                             'device_not_worn_correctly' in str(calidad_final) or 
-                             'worn_during_motion' in str(calidad_final) or 
-                             'low_signal_quality' in str(calidad_final))
+            is_bad_signal = any(f in str(calidad_final) for f in ['device_not_recording', 'device_not_worn_correctly', 'worn_during_motion', 'low_signal_quality'])
             
             if is_bad_signal:
                 valor_num = None
@@ -180,7 +156,6 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
             
             datos_finales.append((tiempo, participante, tipo_sensor, valor_num, calidad_final, investigador))
 
-        # Regla Clínica del 5% de Pérdida
         loss_percentage = (invalid_rows / total_rows * 100) if total_rows > 0 else 0
 
         if datos_finales:
@@ -196,7 +171,7 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
 
     except Exception as e:
         if 'conn' in locals(): conn.rollback()
-        raise Exception(f"Fallo en la base de datos al procesar {archivo_nombre}: {str(e)}")
+        raise Exception(f"Fallo en base de datos: {str(e)}")
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()

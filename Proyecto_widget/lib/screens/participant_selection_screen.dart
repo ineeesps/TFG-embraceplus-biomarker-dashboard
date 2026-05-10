@@ -50,7 +50,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
 
   List<ParticipantData> _realData = [];
 
-  // Colors
   static const Color primaryBlue = Color(0xFF0F172A);
   static const Color bgColor = Color(0xFFF1F5F9);
   
@@ -182,14 +181,13 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                               }
 
                               if (mounted) {
-                                Navigator.pop(context); // Cerrar modal
+                                Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Subida completada: $successCount correctos, $errorCount errores.'),
                                     backgroundColor: errorCount == 0 ? Colors.green : Colors.orange,
                                   )
                                 );
-                                // Recargar todo el panel
                                 setState(() {
                                   _isLoading = true;
                                 });
@@ -288,7 +286,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
         actions: [
           Center(
             child: Text(
-              'Investigador Activo: ${widget.username}',
+              'Investigador: ${widget.username}',
               style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13),
             ),
           ),
@@ -398,7 +396,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                       ? _buildGridView()
                       : _buildTableView(),
             ),
-                  ],
+                   ],
                 ),
       ),
     );
@@ -563,12 +561,12 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                     dataRowMaxHeight: 72,
                     columns: [
                       DataColumn(label: Text('ID Participante', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
-                      DataColumn(label: Text('Calidad de Datos', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
+                      DataColumn(label: Text('Calidad', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
                       if (!isMobile) ...[
                         DataColumn(label: Text('Horas', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
                         DataColumn(label: Text('Fechas', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey.shade600))),
                       ],
-                      const DataColumn(label: SizedBox.shrink()), // Sin el texto "Acción"
+                      const DataColumn(label: SizedBox.shrink()),
                     ],
                     rows: _filteredParticipants.map((data) {
                       final badgeConfig = _getBadgeConfig(data.status);
@@ -628,7 +626,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
     );
   }
 
-  // --- HELPERS ---
   Widget _buildDataRow(IconData icon, String text) {
     return Row(
       children: [
@@ -640,9 +637,9 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
   }
 
   _BadgeConfig _getBadgeConfig(String status) {
-    if (status == 'ÓPTIMO') return _BadgeConfig(const Color(0xFFDCFCE7), const Color(0xFF166534)); // Green
-    if (status == 'REVISIÓN') return _BadgeConfig(const Color(0xFFFEF9C3), const Color(0xFF854D0E)); // Yellow
-    return _BadgeConfig(const Color(0xFFFEE2E2), const Color(0xFF991B1B)); // Red
+    if (status == 'ÓPTIMO') return _BadgeConfig(const Color(0xFFDCFCE7), const Color(0xFF166534));
+    if (status == 'REVISIÓN') return _BadgeConfig(const Color(0xFFFEF9C3), const Color(0xFF854D0E));
+    return _BadgeConfig(const Color(0xFFFEE2E2), const Color(0xFF991B1B));
   }
 }
 

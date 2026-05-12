@@ -3,9 +3,16 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/dashboard_provider.dart';
 import '../models/biomarker.dart';
 import '../widgets/quality_legend.dart';
+
+// Constantes de color para la vista clara unificada
+const Color primaryBlue = Color(0xFF0F172A);
+const Color bgColor = Color(0xFFF1F5F9);
+const Color accentTeal = Color(0xFF0F766E);
+const Color nudeColor = Color(0xFF6B728E);
 
 /// [DashboardScreen] Visualización avanzada de biomarcadores para un participante.
 /// Implementa gráficas interactivas, estadísticas descriptivas y análisis de calidad.
@@ -35,21 +42,101 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: bgColor,
         appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          toolbarHeight: 72,
+          leadingWidth: 56,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: 'Volver a pacientes',
+            icon: const Icon(Icons.arrow_back_rounded, color: primaryBlue),
+            tooltip: 'Volver a mis participantes',
             onPressed: () => Navigator.pop(context),
           ),
-          title: Text('Participante: ${widget.participantId}'),
-          bottom: TabBar(
-            indicatorColor: colorScheme.primary,
-            labelColor: colorScheme.primary,
-            unselectedLabelColor: Colors.white54,
-            tabs: const [
-              Tab(icon: Icon(Icons.monitor_heart_outlined), text: 'Monitorización Clínica'),
-              Tab(icon: Icon(Icons.science_outlined), text: 'Análisis y Exportación'),
+          title: Row(
+            children: [
+              const Icon(Icons.analytics_outlined, color: primaryBlue, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                'EmbracePlus',
+                style: GoogleFonts.inter(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildAppBarBadge('RESEARCH'),
+              const SizedBox(width: 24),
+              Container(width: 1, height: 28, color: Colors.grey.shade200),
+              const SizedBox(width: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'PARTICIPANTE',
+                    style: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                  Text(
+                    widget.participantId,
+                    style: GoogleFonts.inter(color: primaryBlue, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ],
+          ),
+          actions: [
+            Center(
+              child: Text(
+                'Investigador: ${widget.username}',
+                style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 24),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(56),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade100),
+                  bottom: BorderSide(color: Colors.grey.shade200),
+                ),
+              ),
+              child: TabBar(
+                indicatorColor: accentTeal,
+                indicatorWeight: 3,
+                labelColor: accentTeal,
+                unselectedLabelColor: Colors.grey.shade500,
+                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                tabs: const [
+                  Tab(
+                    height: 56,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.monitor_heart_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Monitorización Clínica'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    height: 56,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.science_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Análisis y Exportación'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
         body: TabBarView(
@@ -81,21 +168,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           return Column(
             children: [
-              _buildTimeRangeSelector(context, provider),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: QualityLegend(),
-              ),
+              _buildTopBar(context, provider),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: metricsBySensor.entries.map((entry) {
-                    return BiomarkerCard(
-                      sensorType: entry.key,
-                      data: entry.value,
-                      provider: provider,
-                    );
-                  }).toList(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: [
+                    const QualityLegend(),
+                    const SizedBox(height: 16),
+                    ...metricsBySensor.entries.map((entry) {
+                      return BiomarkerCard(
+                        sensorType: entry.key,
+                        data: entry.value,
+                        provider: provider,
+                      );
+                    }),
+                  ],
                 ),
               ),
             ],
@@ -126,69 +213,271 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context, DashboardProvider provider) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history, size: 64, color: colorScheme.primary.withValues(alpha: 0.2)),
+          Icon(Icons.history, size: 64, color: primaryBlue.withOpacity(0.2)),
           const SizedBox(height: 16),
-          const Text('Sin datos en este rango', style: TextStyle(color: Colors.white54)),
+          Text('Sin datos en este rango', style: GoogleFonts.inter(color: Colors.grey.shade600)),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             icon: const Icon(Icons.calendar_today_rounded, size: 18),
             style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.surface,
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
             ),
             onPressed: () => provider.setTimeRange(null, null, widget.participantId, widget.username),
-            label: const Text('Ver día completo', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: Text('Ver sesión completa', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTimeRangeSelector(BuildContext context, DashboardProvider provider) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
+  Widget _buildTopBar(BuildContext context, DashboardProvider provider) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
+      color: bgColor,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader('CONTROL TEMPORAL'),
+          const SizedBox(height: 12),
+          _buildTimeRangeSelector(context, provider),
+          const SizedBox(height: 32),
+          _buildSectionHeader('CUMPLIMIENTO CLÍNICO'),
+          const SizedBox(height: 12),
+          _buildComplianceBar(context, provider),
+          const SizedBox(height: 32),
+          _buildSectionHeader('INDICADORES GLOBALES'),
+          const SizedBox(height: 12),
+          _buildGlobalKPIs(context, provider),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        color: Colors.grey.shade500,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
+
+  Widget _buildAppBarBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: accentTeal.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: accentTeal,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Color _getComplianceColor(double pct) {
+    if (pct >= 85) return accentTeal; // Óptimo
+    if (pct >= 70) return const Color(0xFF854D0E); // Aceptable (Nude oscuro/Ámbar)
+    if (pct >= 50) return const Color(0xFF92400E); // Bajo
+    return const Color(0xFF991B1B); // Crítico (Rojo apagado)
+  }
+
+  Widget _buildComplianceBar(BuildContext context, DashboardProvider provider) {
+    final pct = provider.compliancePercentage;
+    if (pct == null) return const SizedBox();
+
+    final color = _getComplianceColor(pct);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Calidad de Uso (Compliance)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+            Text('${pct.toStringAsFixed(1)}%', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct / 100,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGlobalKPIs(BuildContext context, DashboardProvider provider) {
+    return Row(
+      children: [
+        Expanded(child: _buildKPICard('Pasos Totales', provider.totalSteps?.toString() ?? '--', Icons.directions_walk, nudeColor)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKPICard('BPM Medio', provider.avgBpm?.toString() ?? '--', Icons.favorite, nudeColor)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKPICard('Gasto Energético/METs Totales', provider.totalMets?.toStringAsFixed(1) ?? '--', Icons.local_fire_department, nudeColor)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKPICard('Temperatura Media', provider.avgTemp != null ? '${provider.avgTemp!.toStringAsFixed(1)}°' : '--', Icons.thermostat, nudeColor)),
+      ],
+    );
+  }
+
+  Widget _buildKPICard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(value, style: GoogleFonts.inter(fontSize: 22, color: primaryBlue, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRangeSelector(BuildContext context, DashboardProvider provider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         children: [
-          Icon(Icons.access_time_rounded, color: colorScheme.primary, size: 20),
+          const Icon(Icons.tune_rounded, color: primaryBlue, size: 20),
           const SizedBox(width: 12),
           Text(
-            provider.startHour == null ? 'Sesión completa' : 'Tramo seleccionado',
-            style: theme.textTheme.bodyMedium,
+            provider.startHour == null && provider.sessionDate == null ? 'Todo el periodo' : 'Rango filtrado',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: primaryBlue, fontSize: 13),
           ),
           const Spacer(),
           _TimeButton(
-            label: provider.startHour?.format(context) ?? 'Inicio',
+            icon: Icons.calendar_today_rounded,
+            label: provider.sessionDate != null 
+                ? (provider.endDate != null 
+                    ? '${DateFormat('dd/MM').format(provider.sessionDate!)} - ${DateFormat('dd/MM').format(provider.endDate!)}' 
+                    : DateFormat('dd/MM/yyyy').format(provider.sessionDate!)) 
+                : 'Fecha',
             onTap: () async {
-              final time = await showTimePicker(context: context, initialTime: provider.startHour ?? const TimeOfDay(hour: 0, minute: 0));
+              final range = await showDateRangePicker(
+                context: context, 
+                firstDate: DateTime(2020), 
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                initialDateRange: provider.sessionDate != null 
+                    ? DateTimeRange(start: provider.sessionDate!, end: provider.endDate ?? provider.sessionDate!) 
+                    : null,
+                helpText: 'Seleccionar rango de fechas',
+                confirmText: 'Aceptar',
+                saveText: 'Guardar',
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: primaryBlue,
+                        onPrimary: Colors.white,
+                        surface: Colors.white,
+                        onSurface: primaryBlue,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (range != null) {
+                provider.setDateRange(range.start, range.end, widget.participantId, widget.username);
+              }
+            },
+          ),
+          const SizedBox(width: 10),
+          _TimeButton(
+            label: provider.startHour?.format(context) ?? 'Hora Inicio',
+            onTap: () async {
+              final time = await showTimePicker(
+                context: context, 
+                initialTime: provider.startHour ?? const TimeOfDay(hour: 0, minute: 0),
+                helpText: 'Seleccionar hora de inicio',
+                confirmText: 'Aceptar',
+                cancelText: 'Cancelar',
+                hourLabelText: 'Hora',
+                minuteLabelText: 'Minuto',
+              );
               if (time != null) provider.setTimeRange(time, provider.endHour, widget.participantId, widget.username);
             },
           ),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('-', style: TextStyle(color: Colors.white24))),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Text('-', style: TextStyle(color: Colors.black26, fontWeight: FontWeight.bold))),
           _TimeButton(
-            label: provider.endHour?.format(context) ?? 'Fin',
+            label: provider.endHour?.format(context) ?? 'Hora Fin',
             onTap: () async {
-              final time = await showTimePicker(context: context, initialTime: provider.endHour ?? const TimeOfDay(hour: 23, minute: 59));
+              final time = await showTimePicker(
+                context: context, 
+                initialTime: provider.endHour ?? const TimeOfDay(hour: 23, minute: 59),
+                helpText: 'Seleccionar hora de fin',
+                confirmText: 'Aceptar',
+                cancelText: 'Cancelar',
+                hourLabelText: 'Hora',
+                minuteLabelText: 'Minuto',
+              );
               if (time != null) provider.setTimeRange(provider.startHour, time, widget.participantId, widget.username);
             },
           ),
-          if (provider.startHour != null || provider.endHour != null)
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 18, color: Colors.redAccent),
-              onPressed: () => provider.setTimeRange(null, null, widget.participantId, widget.username),
+          if (provider.startHour != null || provider.endHour != null || provider.sessionDate != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: IconButton(
+                icon: const Icon(Icons.refresh_rounded, size: 20, color: Colors.grey),
+                tooltip: 'Resetear filtros',
+                onPressed: () {
+                  provider.setDateRange(null, null, widget.participantId, widget.username);
+                  provider.setTimeRange(null, null, widget.participantId, widget.username);
+                },
+              ),
             ),
         ],
       ),
@@ -214,11 +503,14 @@ class BiomarkerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.black.withOpacity(0.05)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -233,7 +525,7 @@ class BiomarkerCard extends StatelessWidget {
                     children: [
                       Text(
                         _formatSensorTitle(sensorType),
-                        style: theme.textTheme.titleLarge,
+                        style: GoogleFonts.inter(color: primaryBlue, fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -247,16 +539,16 @@ class BiomarkerCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (data.any((b) => b.value != null)) _buildStatsTable(context, data),
-            if (data.any((b) => b.value != null)) const SizedBox(height: 16),
+            if (data.any((b) => b.value != null)) const SizedBox(height: 24),
             if (data.any((b) => b.value != null))
               SizedBox(
                 height: 250,
                 child: LineChart(_buildChartData(context, data)),
               )
             else 
-               const SizedBox(
+               SizedBox(
                  height: 100, 
-                 child: Center(child: Text("Sin valores representables (Gaps de calidad)", style: TextStyle(color: Colors.white38)))
+                 child: Center(child: Text("Sin valores representables (Gaps de calidad)", style: GoogleFonts.inter(color: Colors.grey.shade500)))
                ),
           ],
         ),
@@ -277,8 +569,9 @@ class BiomarkerCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.2),
+        color: bgColor,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -318,8 +611,6 @@ class BiomarkerCard extends StatelessWidget {
   }
 
   LineChartData _buildChartData(BuildContext context, List<Biomarker> data) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final displayData = data;
     final List<LineChartBarData> bars = [];
     
@@ -362,12 +653,12 @@ class BiomarkerCard extends StatelessWidget {
     bars.addAll(segments.asMap().entries.map((entry) {
       final spots = entry.value;
       final quality = segmentQualities[entry.key];
-      Color color = colorScheme.primary; 
+      Color color = accentTeal; 
       bool isProblematic = false;
       if (quality == 'worn_during_motion') { color = const Color(0xFFF59E0B); isProblematic = true; }
       else if (quality == 'worn_with_low_signal_quality') { color = const Color(0xFFEF4444); isProblematic = true; }
-      else if (quality == 'device_not_recording') { color = const Color(0xFF94A3B8).withValues(alpha: 0.6); }
-      else if (quality == 'device_not_worn_correctly') { color = const Color(0xFF94A3B8).withValues(alpha: 0.4); }
+      else if (quality == 'device_not_recording') { color = const Color(0xFF94A3B8).withOpacity(0.6); }
+      else if (quality == 'device_not_worn_correctly') { color = const Color(0xFF94A3B8).withOpacity(0.4); }
 
       return LineChartBarData(
         spots: spots,
@@ -380,7 +671,7 @@ class BiomarkerCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [color.withValues(alpha: isProblematic ? 0.3 : 0.15), color.withValues(alpha: 0.0)],
+            colors: [color.withOpacity(isProblematic ? 0.2 : 0.1), color.withOpacity(0.0)],
           ),
         ),
       );
@@ -395,7 +686,7 @@ class BiomarkerCard extends StatelessWidget {
         bars.add(LineChartBarData(
           spots: [lastSpotOfCurrent, firstSpotOfNext],
           isCurved: false,
-          color: const Color(0xFF94A3B8).withValues(alpha: 0.6),
+          color: const Color(0xFF94A3B8).withOpacity(0.4),
           barWidth: 1.5,
           dashArray: [4, 4],
           dotData: const FlDotData(show: false),
@@ -425,9 +716,12 @@ class BiomarkerCard extends StatelessWidget {
       minX = startDT.millisecondsSinceEpoch.toDouble();
     }
     
-    if (provider.endHour != null && provider.sessionDate != null) {
-      final endDT = DateTime.utc(provider.sessionDate!.year, provider.sessionDate!.month, provider.sessionDate!.day, provider.endHour!.hour, provider.endHour!.minute);
-      maxX = endDT.millisecondsSinceEpoch.toDouble();
+    if (provider.endHour != null) {
+      final targetDate = provider.endDate ?? provider.sessionDate;
+      if (targetDate != null) {
+        final endDT = DateTime.utc(targetDate.year, targetDate.month, targetDate.day, provider.endHour!.hour, provider.endHour!.minute);
+        maxX = endDT.millisecondsSinceEpoch.toDouble();
+      }
     }
 
     double xInterval = (maxX - minX) / 5;
@@ -443,8 +737,8 @@ class BiomarkerCard extends StatelessWidget {
         show: true, 
         horizontalInterval: yInterval, 
         verticalInterval: xInterval,
-        getDrawingHorizontalLine: (v) => FlLine(color: Colors.white.withValues(alpha: 0.05), strokeWidth: 1),
-        getDrawingVerticalLine: (v) => FlLine(color: Colors.white.withValues(alpha: 0.02), strokeWidth: 1),
+        getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+        getDrawingVerticalLine: (v) => FlLine(color: Colors.grey.shade100, strokeWidth: 1),
         drawVerticalLine: true,
       ),
       titlesData: FlTitlesData(
@@ -461,7 +755,7 @@ class BiomarkerCard extends StatelessWidget {
               final dt = DateTime.fromMillisecondsSinceEpoch(v.toInt(), isUtc: true);
               return SideTitleWidget(
                 axisSide: meta.axisSide,
-                child: Text(DateFormat('HH:mm').format(dt), style: const TextStyle(color: Colors.white38, fontSize: 10))
+                child: Text(DateFormat('HH:mm').format(dt), style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 10))
               );
             }
           )
@@ -470,7 +764,7 @@ class BiomarkerCard extends StatelessWidget {
           sideTitles: SideTitles(
             showTitles: true,
             interval: yInterval,
-            reservedSize: isCategorical ? 65 : 60,
+            reservedSize: isCategorical ? 65 : 45,
             getTitlesWidget: (v, meta) {
                if (isCategorical) {
                 final intValue = v.round();
@@ -489,9 +783,9 @@ class BiomarkerCard extends StatelessWidget {
                   const labels = ['WAKE', 'REST', 'INTERRUPT', 'RESERVED'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
                 }
-                return SideTitleWidget(axisSide: meta.axisSide, space: 10, child: Text(text, style: const TextStyle(color: Colors.white38, fontSize: 8)));
+                return SideTitleWidget(axisSide: meta.axisSide, space: 10, child: Text(text, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 8)));
               }
-              return SideTitleWidget(axisSide: meta.axisSide, space: 12, child: Text(v >= 1000 ? '${(v/1000).toStringAsFixed(1)}k' : v.toStringAsFixed(0), style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)));
+              return SideTitleWidget(axisSide: meta.axisSide, space: 8, child: Text(v >= 1000 ? '${(v/1000).toStringAsFixed(1)}k' : v.toStringAsFixed(0), style: GoogleFonts.inter(color: primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)));
             }
           )
         ),
@@ -500,12 +794,12 @@ class BiomarkerCard extends StatelessWidget {
       lineBarsData: bars,
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
-          getTooltipColor: (_) => colorScheme.surface,
+          getTooltipColor: (_) => primaryBlue,
           getTooltipItems: (touchedSpots) {
             return touchedSpots.map((spot) {
               return LineTooltipItem(
                 spot.y.toStringAsFixed(2),
-                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
               );
             }).toList();
           },
@@ -523,9 +817,9 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        Text(label, style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(value, style: GoogleFonts.inter(color: primaryBlue, fontSize: 16, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -534,21 +828,30 @@ class _StatItem extends StatelessWidget {
 class _TimeButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _TimeButton({required this.label, required this.onTap});
+  final IconData? icon;
+  const _TimeButton({required this.label, required this.onTap, this.icon});
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: colorScheme.primary.withValues(alpha: 0.1),
-          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
+          color: primaryBlue.withOpacity(0.05),
+          border: Border.all(color: primaryBlue.withOpacity(0.1)),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label, style: TextStyle(color: colorScheme.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: primaryBlue),
+              const SizedBox(width: 6),
+            ],
+            Text(label, style: GoogleFonts.inter(color: primaryBlue, fontSize: 13, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }

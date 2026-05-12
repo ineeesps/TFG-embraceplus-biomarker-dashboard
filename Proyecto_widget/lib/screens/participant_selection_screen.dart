@@ -57,6 +57,8 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
   // Configuración estética del dashboard (Clinical Research Theme)
   static const Color primaryBlue = Color(0xFF0F172A);
   static const Color bgColor = Color(0xFFF1F5F9);
+  static const Color accentTeal = Color(0xFF0F766E);
+  static const Color nudeColor = Color(0xFF6B728E);
   
   @override
   void initState() {
@@ -479,11 +481,11 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                     children: [
             Row(
               children: [
-                Expanded(child: _buildKPICard('Total Participantes', '${_realData.length}', Icons.people_outline, Colors.blue)),
+                Expanded(child: _buildKPICard('Total Participantes', '${_realData.length}', Icons.people_rounded, primaryBlue)),
                 const SizedBox(width: 24),
-                Expanded(child: _buildKPICard('Cumplimiento Medio', '${avgCompliance.toStringAsFixed(1)}%', Icons.check_circle_outline, Colors.green)),
+                Expanded(child: _buildKPICard('Cumplimiento Medio', '${avgCompliance.toStringAsFixed(1)}%', Icons.verified_user_rounded, accentTeal)),
                 const SizedBox(width: 24),
-                Expanded(child: _buildKPICard('Alertas Activas', '$totalAlerts', Icons.warning_amber_rounded, totalAlerts > 0 ? Colors.orange : Colors.grey)),
+                Expanded(child: _buildKPICard('Alertas Activas', '$totalAlerts', Icons.error_outline_rounded, totalAlerts > 0 ? const Color(0xFF92400E) : nudeColor)),
               ],
             ),
             const SizedBox(height: 32),
@@ -497,8 +499,8 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                     style: GoogleFonts.inter(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Buscar por ID de participante...',
-                      hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                      hintStyle: GoogleFonts.inter(color: nudeColor.withOpacity(0.5)),
+                      prefixIcon: const Icon(Icons.search, color: nudeColor),
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -527,7 +529,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                   child: Row(
                     children: [
                       _buildToggleButton(Icons.grid_view_rounded, true),
-                      Container(width: 1, height: 40, color: Colors.grey.shade300),
+                      Container(width: 1, height: 40, color: Colors.grey.shade200),
                       _buildToggleButton(Icons.table_rows_rounded, false),
                     ],
                   ),
@@ -538,7 +540,7 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                   icon: const Icon(Icons.upload_file, size: 18),
                   label: Text('Subir Participante', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E), 
+                    backgroundColor: accentTeal, 
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -582,14 +584,14 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
         ),
         child: Icon(
           icon,
-          color: isSelected ? primaryBlue : Colors.grey.shade400,
+          color: isSelected ? primaryBlue : nudeColor.withOpacity(0.4),
           size: 20,
         ),
       ),
     );
   }
 
-  Widget _buildKPICard(String title, String value, IconData icon, MaterialColor color) {
+  Widget _buildKPICard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -603,8 +605,8 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.shade50, borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color.shade600, size: 28),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(width: 16),
           Column(
@@ -685,17 +687,17 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.analytics_outlined, color: Color(0xFF0F766E), size: 22),
+                      icon: const Icon(Icons.analytics_outlined, color: accentTeal, size: 20),
                       onPressed: () => _navigateToDashboard(data.id),
                       tooltip: 'Ver Dashboard',
                     ),
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey, size: 22),
+                      icon: const Icon(Icons.drive_file_rename_outline_rounded, color: nudeColor, size: 20),
                       onPressed: () => _showEditOptions(data.id),
                       tooltip: 'Editar/Subir',
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                      icon: const Icon(Icons.delete_sweep_outlined, color: Color(0xFF991B1B), size: 20),
                       onPressed: () => _deleteParticipant(data.id),
                       tooltip: 'Eliminar',
                     ),
@@ -782,17 +784,17 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.analytics_outlined, color: Color(0xFF0F766E), size: 20),
+                                  icon: const Icon(Icons.analytics_outlined, color: accentTeal, size: 20),
                                   onPressed: () => _navigateToDashboard(data.id),
                                   tooltip: 'Ver Dashboard',
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey, size: 20),
+                                  icon: const Icon(Icons.drive_file_rename_outline_rounded, color: nudeColor, size: 20),
                                   onPressed: () => _showEditOptions(data.id),
                                   tooltip: 'Editar/Subir',
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                  icon: const Icon(Icons.delete_sweep_outlined, color: Color(0xFF991B1B), size: 20),
                                   onPressed: () => _deleteParticipant(data.id),
                                   tooltip: 'Eliminar',
                                 ),
@@ -815,16 +817,16 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
   Widget _buildDataRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: Colors.grey.shade500),
+        Icon(icon, size: 14, color: nudeColor),
         const SizedBox(width: 8),
-        Text(text, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600)),
+        Text(text, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
       ],
     );
   }
 
   _BadgeConfig _getBadgeConfig(String status) {
-    if (status == 'ÓPTIMO') return _BadgeConfig(const Color(0xFFDCFCE7), const Color(0xFF166534));
-    if (status == 'REVISIÓN') return _BadgeConfig(const Color(0xFFFEF9C3), const Color(0xFF854D0E));
+    if (status == 'ÓPTIMO') return _BadgeConfig(accentTeal.withOpacity(0.1), accentTeal);
+    if (status == 'REVISIÓN') return _BadgeConfig(const Color(0xFFFEF3C7), const Color(0xFF92400E));
     return _BadgeConfig(const Color(0xFFFEE2E2), const Color(0xFF991B1B));
   }
 }

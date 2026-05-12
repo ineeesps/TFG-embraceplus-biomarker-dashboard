@@ -8,24 +8,27 @@ class ApiService {
   ApiService({this.baseUrl = 'http://localhost:8000'});
 
   Future<List<String>> login(String username, String password) async {
+    final http.Response response;
     try {
-      final response = await http.post(
+      response = await http.post(
         Uri.parse('$baseUrl/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'username': username,
           'password': password,
         }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return List<String>.from(data['participantes_asignados']);
-      } else {
-        throw Exception('Credenciales incorrectas');
-      }
+      ).timeout(const Duration(seconds: 10));
     } catch (e) {
-      throw Exception('Error al conectar con el servidor');
+      throw Exception('Error al conectar con el servidor. Verifica tu conexión.');
+    }
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<String>.from(data['participantes_asignados']);
+    } else if (response.statusCode == 401) {
+      throw Exception('Usuario o contraseña incorrectos');
+    } else {
+      throw Exception('Error del servidor (${response.statusCode})');
     }
   }
 

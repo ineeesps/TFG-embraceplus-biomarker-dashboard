@@ -1,56 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// [QualityLegend] Widget informativo que explica la codificación de colores 
-/// según la calidad de la señal clínica detectada.
 class QualityLegend extends StatelessWidget {
   const QualityLegend({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 10,
-        children: [
-          _buildItem(theme.colorScheme.primary, 'Óptima', isDashed: false),
-          _buildItem(const Color(0xFFF59E0B), 'Movimiento', isDashed: false),
-          _buildItem(const Color(0xFFEF4444), 'Señal Baja', isDashed: false),
-          _buildItem(const Color(0xFF94A3B8).withValues(alpha: 0.6), 'Gap (Interpolado)', isDashed: true),
-        ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          children: [
+            _buildItem(Colors.grey.shade500, 'Inactivo/Apagado'),
+            _buildItem(const Color(0xFFFACC15), 'Mal colocado'),
+            _buildItem(const Color(0xFFEF4444), 'Ruido/Movimiento crítico'),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildItem(Color color, String label, {required bool isDashed}) {
+  Widget _buildItem(Color color, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 20,
-          height: 3,
+          width: 12,
+          height: 12,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: Colors.black12),
           ),
-          child: isDashed 
-            ? Row(
-                children: List.generate(3, (index) => Expanded(
-                  child: Container(color: index % 2 == 0 ? color : Colors.transparent),
-                )),
-              )
-            : null,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Text(
           label,
-          style: const TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          style: GoogleFonts.inter(
+            color: Colors.grey.shade700, 
+            fontSize: 10, 
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );

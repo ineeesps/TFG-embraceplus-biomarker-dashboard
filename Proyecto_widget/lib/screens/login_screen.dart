@@ -18,9 +18,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _errorMessage;
 
-  static const Color primaryBlue = Color(0xFF1E293B); // Navy Blue
-  static const Color accentTeal = Color(0xFF0F766E); // Dark Teal
+  static const Color primaryBlue = Color(0xFF0F172A);
+  static const Color accentTeal = Color(0xFF0F766E);
   static const Color bgLight = Color(0xFFF1F5F9);
+  static const Color nudeColor = Color(0xFF6B728E);
 
   Future<void> _login() async {
     setState(() {
@@ -81,7 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 460),
                     child: Container(
-                      // Tarjeta con más presencia
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -204,12 +204,29 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           
                           if (_errorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 14),
-                              child: Text(
-                                _errorMessage!,
-                                style: GoogleFonts.inter(color: Colors.red.shade700, fontSize: 12, fontWeight: FontWeight.w600),
-                                textAlign: TextAlign.center,
+                            Container(
+                              margin: const EdgeInsets.only(top: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade100),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 18),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.red.shade800,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             
@@ -227,11 +244,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               elevation: 0,
                             ),
                             child: Text(
-                              'ACCEDER AL SISTEMA',
+                              'Acceder al sistema',
                               style: GoogleFonts.inter(
-                                fontSize: 14,
+                                fontSize: 15,
                                 fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
                               ),
                             ),
                           ),
@@ -246,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.shield_outlined, size: 16, color: primaryBlue.withOpacity(0.6)),
+                                Icon(Icons.shield_outlined, size: 16, color: nudeColor),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(

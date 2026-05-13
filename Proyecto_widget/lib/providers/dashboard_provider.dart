@@ -8,35 +8,9 @@ class DashboardProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  TimeOfDay? _startHour;
-  TimeOfDay? _endHour;
-  DateTime? _sessionDate;
-  DateTime? _endDate;
-
   List<Biomarker> get metrics => _metrics;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  TimeOfDay? get startHour => _startHour;
-  TimeOfDay? get endHour => _endHour;
-  DateTime? get sessionDate => _sessionDate;
-  DateTime? get endDate => _endDate;
-
-  void setTimeRange(TimeOfDay? start, TimeOfDay? end, String participantId, String username, {DateTime? date}) {
-    _startHour = start;
-    _endHour = end;
-    if (date != null) {
-      _sessionDate = date;
-    }
-    fetchMetrics(participantId, username);
-  }
-
-  void setDateRange(DateTime? start, DateTime? end, String participantId, String username) {
-    _sessionDate = start;
-    _endDate = end;
-    _startHour = start != null ? TimeOfDay(hour: start.hour, minute: start.minute) : null;
-    _endHour = end != null ? TimeOfDay(hour: end.hour, minute: end.minute) : null;
-    fetchMetrics(participantId, username);
-  }
 
   Future<void> fetchMetrics(String participantId, String username) async {
     _isLoading = true;
@@ -44,27 +18,7 @@ class DashboardProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      String? startStr;
-      String? endStr;
-
-      if (_startHour != null && _sessionDate != null) {
-        final dateStart = DateTime.utc(_sessionDate!.year, _sessionDate!.month, _sessionDate!.day, _startHour!.hour, _startHour!.minute);
-        startStr = dateStart.toIso8601String();
-      }
-      if (_endHour != null) {
-        final targetDate = _endDate ?? _sessionDate;
-        if (targetDate != null) {
-          final dateEnd = DateTime.utc(targetDate.year, targetDate.month, targetDate.day, _endHour!.hour, _endHour!.minute);
-          endStr = dateEnd.toIso8601String();
-        }
-      }
-
-      _metrics = await _apiService.getMetrics(participantId, username, startTime: startStr, endTime: endStr);
-      
-      if (_metrics.isNotEmpty && _startHour == null && _endHour == null) {
-        _sessionDate = _metrics.first.time.toUtc();
-      }
-      
+      _metrics = await _apiService.getMetrics(participantId, username);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -118,5 +72,54 @@ class DashboardProvider with ChangeNotifier {
       }
     }
     return (validPoints / wearing.length) * 100;
+  }
+  double? get sleepHours {
+    final sleep = _metrics.where((m) => m.sensorType == 'sleep_detection' && m.value != null);
+    if (sleep.isEmpty) return null;
+    // Cada registro suele ser de 30s o 1min. Sumamos los que no sean 'Wake' (0)
+    final sleepPoints = sleep.where((m) => m.value! > 0).length;
+    return (sleepPoints * 30) / 3600; // Asumiendo buckets de 30s
+  }
+
+  double? get avgStress {
+    final eda = _metrics.where((m) => m.sensorType == 'eda' && m.value != null);
+    if (eda.isEmpty) return null;
+    return eda.fold<double>(0.0, (sum, m) => sum + m.value!) / eda.length;
+  }
+
+  String get lastActivity {
+    final act = _metrics.where((m) {
+      final type = m.sensorType.toLowerCase().replaceAll('-', '_');
+      return (type == 'activity_class' || type == 'activity_classification') && m.value != null;
+    }).toList();
+    
+    if (act.isEmpty) return 'Desconocido';
+    final val = act.last.value!.toInt();
+    switch (val) {
+      case 0: return 'Sedentario';
+      case 1: return 'Caminando';
+      case 2: return 'Corriendo';
+      case 3: return 'Actividad Genérica';
+      default: return 'Desconocido';
+    }
+  }
+
+  String get lastPosition {
+    final pos = _metrics.where((m) {
+      final type = m.sensorType.toLowerCase().replaceAll('-', '_');
+      return (type == 'body_position' || type == 'body_position_left') && m.value != null;
+    }).toList();
+    
+    if (pos.isEmpty) return 'Desconocido';
+    final val = pos.last.value!.toInt();
+    switch (val) {
+      case 0: return 'Sentado / Reclinado';
+      case 1: return 'De pie';
+      case 2: return 'Lateral Izquierdo';
+      case 3: return 'Lateral Derecho';
+      case 4: return 'Prono (Boca abajo)';
+      case 5: return 'Supino (Boca arriba)';
+      default: return 'Desconocido';
+    }
   }
 }

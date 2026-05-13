@@ -10,7 +10,6 @@ import '../widgets/quality_legend.dart';
 import '../widgets/sidebar_layout.dart';
 import 'login_screen.dart';
 
-// Constantes de color para la vista clara unificada
 const Color primaryBlue = Color(0xFF0F172A);
 const Color bgColor = Color(0xFFF1F5F9);
 const Color accentTeal = Color(0xFF0F766E);
@@ -106,20 +105,261 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildInicio(DashboardProvider provider) {
-    return SingleChildScrollView(
-      child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double width = constraints.maxWidth;
+        final bool isMobile = width < 600;
+        final bool isTablet = width < 1000 && width >= 600;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 16 : 32, 
+            vertical: isMobile ? 20 : 40
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (provider.metrics.isEmpty)
+                _buildEmptyState(context, provider)
+              else ...[
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _buildIAStatusLabel(Icons.accessibility_new_rounded, 'Estado actual', provider.lastActivity, isMobile),
+                    _buildIAStatusLabel(Icons.bedtime_outlined, 'Última posición', provider.lastPosition, isMobile),
+                  ],
+                ),
+                SizedBox(height: isMobile ? 30 : 50),
+                _buildComplianceDonut(provider, isMobile),
+                SizedBox(height: isMobile ? 30 : 50),
+                _buildDailyKPIsGrid(provider, isMobile, isTablet),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildIAStatusLabel(IconData icon, String title, String value, bool isMobile) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: isMobile ? 160 : 220),
+      padding: const EdgeInsets.fromLTRB(6, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 15, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildTopBar(context, provider),
-          if (provider.metricsBySensor.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: _buildEmptyState(context, provider),
+          Container(
+            width: 4,
+            height: 30,
+            decoration: BoxDecoration(
+              color: accentTeal,
+              borderRadius: BorderRadius.circular(2),
             ),
+          ),
+          const SizedBox(width: 12),
+          Icon(icon, size: isMobile ? 20 : 24, color: primaryBlue),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(fontSize: isMobile ? 9 : 11, color: Colors.grey.shade500, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.inter(fontSize: isMobile ? 12 : 14, color: primaryBlue, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildComplianceDonut(DashboardProvider provider, bool isMobile) {
+    final double pct = provider.compliancePercentage ?? 0;
+    final Color color = _getComplianceColor(pct);
+    final bool isCritical = pct < 50;
+    final double size = isMobile ? 220 : 300;
+
+    return Column(
+      children: [
+        SizedBox(
+          height: size,
+          width: size,
+          child: Stack(
+            children: [
+              PieChart(
+                PieChartData(
+                  sectionsSpace: 0,
+                  centerSpaceRadius: isMobile ? 70 : 100,
+                  startDegreeOffset: -90,
+                  sections: [
+                    PieChartSectionData(
+                      color: color,
+                      value: pct,
+                      radius: isMobile ? 20 : 25,
+                      showTitle: false,
+                    ),
+                    PieChartSectionData(
+                      color: color.withValues(alpha: 0.1),
+                      value: 100 - pct,
+                      radius: isMobile ? 20 : 25,
+                      showTitle: false,
+                    ),
+                  ],
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${pct.toInt()}%',
+                      style: GoogleFonts.inter(
+                        fontSize: isMobile ? 40 : 56,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      'CUMPLIMIENTO',
+                      style: GoogleFonts.inter(
+                        fontSize: isMobile ? 8 : 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade400,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+        if (isCritical)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red.shade100),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'ALERTA: Cumplimiento crítico',
+                  style: GoogleFonts.inter(color: Colors.red.shade900, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDailyKPIsGrid(DashboardProvider provider, bool isMobile, bool isTablet) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: isMobile ? 2 : 4,
+      mainAxisSpacing: isMobile ? 12 : 20,
+      crossAxisSpacing: isMobile ? 12 : 20,
+      childAspectRatio: isMobile ? 0.95 : 1.0,
+      children: [
+        _buildKPICard(
+          'Pasos Totales',
+          provider.totalSteps?.toString() ?? '--',
+          Icons.directions_walk_rounded,
+          Colors.orange,
+          isMobile,
+        ),
+        _buildKPICard(
+          'Frecuencia Cardíaca',
+          provider.avgBpm?.toString() ?? '--',
+          Icons.favorite_rounded,
+          Colors.red,
+          isMobile,
+        ),
+        _buildKPICard(
+          'Horas de Sueño',
+          provider.sleepHours?.toStringAsFixed(1) ?? '--',
+          Icons.nightlight_round,
+          Colors.indigo,
+          isMobile,
+        ),
+        _buildKPICard(
+          'Nivel de Estrés',
+          provider.avgStress?.toStringAsFixed(2) ?? '--',
+          Icons.psychology_rounded,
+          Colors.teal,
+          isMobile,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKPICard(String title, String value, IconData icon, Color color, bool isMobile) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 16 : 24, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(isMobile ? 8 : 12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: isMobile ? 22 : 28),
+          ),
+          SizedBox(height: isMobile ? 12 : 20),
+          Text(
+            value,
+            style: GoogleFonts.inter(fontSize: isMobile ? 20 : 28, fontWeight: FontWeight.bold, color: primaryBlue),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.inter(fontSize: isMobile ? 9 : 11, color: Colors.grey.shade500, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getComplianceColor(double pct) {
+    if (pct >= 85) return const Color(0xFF10B981); // Verde esmeralda
+    if (pct >= 60) return const Color(0xFFF59E0B); // Naranja ámbar
+    return const Color(0xFFEF4444); // Rojo vibrante
+  }
   Widget _buildSensorSection(DashboardProvider provider, List<String> allowedSensors) {
     final filteredMetrics = Map.fromEntries(
       provider.metricsBySensor.entries.where((e) => allowedSensors.contains(e.key))
@@ -216,342 +456,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+
   Widget _buildEmptyState(BuildContext context, DashboardProvider provider) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history, size: 64, color: primaryBlue.withOpacity(0.2)),
-          const SizedBox(height: 16),
-          Text('Sin datos en este rango', style: GoogleFonts.inter(color: Colors.grey.shade600)),
+          Icon(Icons.analytics_outlined, size: 80, color: primaryBlue.withValues(alpha: 0.1)),
           const SizedBox(height: 24),
+          Text(
+            'Sin registros históricos',
+            style: GoogleFonts.inter(fontSize: 18, color: primaryBlue, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No se han encontrado datos biométricos para este participante.',
+            style: GoogleFonts.inter(color: Colors.grey.shade500),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
           ElevatedButton.icon(
-            icon: const Icon(Icons.calendar_today_rounded, size: 18),
+            icon: const Icon(Icons.refresh_rounded),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryBlue,
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            onPressed: () => provider.setTimeRange(null, null, widget.participantId, widget.username),
-            label: Text('Ver sesión completa', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            onPressed: () => provider.fetchMetrics(widget.participantId, widget.username),
+            label: const Text('Reintentar carga de datos'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTopBar(BuildContext context, DashboardProvider provider) {
-    return Container(
-      color: bgColor,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildSectionHeader('CONTROL TEMPORAL'),
-          const SizedBox(height: 12),
-          _buildTimeRangeSelector(context, provider),
-          const SizedBox(height: 32),
-          _buildSectionHeader('CUMPLIMIENTO CLÍNICO'),
-          const SizedBox(height: 12),
-          _buildComplianceBar(context, provider),
-          const SizedBox(height: 32),
-          _buildSectionHeader('INDICADORES GLOBALES'),
-          const SizedBox(height: 12),
-          _buildGlobalKPIs(context, provider),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.inter(
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        color: Colors.grey.shade500,
-        letterSpacing: 1.2,
-      ),
-    );
-  }
-
-  Widget _buildAppBarBadge(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: accentTeal.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: accentTeal,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1,
-        ),
-      ),
-    );
-  }
-
-  Color _getComplianceColor(double pct) {
-    if (pct >= 85) return accentTeal;
-    if (pct >= 70) return const Color(0xFF854D0E);
-    if (pct >= 50) return const Color(0xFF92400E);
-    return const Color(0xFF991B1B);
-  }
-
-  Widget _buildComplianceBar(BuildContext context, DashboardProvider provider) {
-    final pct = provider.compliancePercentage;
-    if (pct == null) return const SizedBox();
-
-    final color = _getComplianceColor(pct);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Calidad de Uso (Compliance)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-            Text('${pct.toStringAsFixed(1)}%', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: pct / 100,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 8,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGlobalKPIs(BuildContext context, DashboardProvider provider) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isSmall = constraints.maxWidth < 600;
-        final bool isMedium = constraints.maxWidth < 1000;
-        
-        return GridView(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isSmall ? 1 : (isMedium ? 2 : 4),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            mainAxisExtent: 100,
-          ),
-          children: [
-            _buildKPICard('Pasos Totales', provider.totalSteps?.toString() ?? '--', Icons.directions_walk, nudeColor),
-            _buildKPICard('BPM Medio', provider.avgBpm?.toString() ?? '--', Icons.favorite, nudeColor),
-            _buildKPICard('Gasto Energético/METs', provider.totalMets?.toStringAsFixed(1) ?? '--', Icons.local_fire_department, nudeColor),
-            _buildKPICard('Temperatura Media', provider.avgTemp != null ? '${provider.avgTemp!.toStringAsFixed(1)}°' : '--', Icons.thermostat, nudeColor),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildKPICard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(title, style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(value, style: GoogleFonts.inter(fontSize: 22, color: primaryBlue, fontWeight: FontWeight.w800)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeRangeSelector(BuildContext context, DashboardProvider provider) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isSmall = constraints.maxWidth < 650;
-        
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade100),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: isSmall 
-            ? Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.tune_rounded, color: primaryBlue, size: 20),
-                      const SizedBox(width: 12),
-                      Text(
-                        provider.startHour == null && provider.sessionDate == null ? 'Todo el periodo' : 'Rango filtrado',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: primaryBlue, fontSize: 13),
-                      ),
-                      const Spacer(),
-                      if (provider.startHour != null || provider.sessionDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.refresh_rounded, size: 20, color: Colors.grey),
-                          onPressed: () {
-                            provider.setDateRange(null, null, widget.participantId, widget.username);
-                            provider.setTimeRange(null, null, widget.participantId, widget.username);
-                          },
-                        ),
-                    ],
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  _buildDateButton(context, provider),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(child: _buildStartTimeButton(context, provider)),
-                      const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('-', style: TextStyle(color: Colors.black26))),
-                      Expanded(child: _buildEndTimeButton(context, provider)),
-                    ],
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  const Icon(Icons.tune_rounded, color: primaryBlue, size: 20),
-                  const SizedBox(width: 12),
-                  Text(
-                    provider.startHour == null && provider.sessionDate == null ? 'Todo el periodo' : 'Rango filtrado',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: primaryBlue, fontSize: 13),
-                  ),
-                  const Spacer(),
-                  _buildDateButton(context, provider),
-                  const SizedBox(width: 10),
-                  _buildStartTimeButton(context, provider),
-                  const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Text('-', style: TextStyle(color: Colors.black26, fontWeight: FontWeight.bold))),
-                  _buildEndTimeButton(context, provider),
-                  if (provider.startHour != null || provider.endHour != null || provider.sessionDate != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: IconButton(
-                        icon: const Icon(Icons.refresh_rounded, size: 20, color: Colors.grey),
-                        tooltip: 'Resetear filtros',
-                        onPressed: () {
-                          provider.setDateRange(null, null, widget.participantId, widget.username);
-                          provider.setTimeRange(null, null, widget.participantId, widget.username);
-                        },
-                      ),
-                    ),
-                ],
-              ),
-        );
-      }
-    );
-  }
-
-  Widget _buildDateButton(BuildContext context, DashboardProvider provider) {
-    return _TimeButton(
-      icon: Icons.calendar_today_rounded,
-      label: provider.sessionDate != null 
-          ? (provider.endDate != null 
-              ? '${DateFormat('dd/MM').format(provider.sessionDate!)} - ${DateFormat('dd/MM').format(provider.endDate!)}' 
-              : DateFormat('dd/MM/yyyy').format(provider.sessionDate!)) 
-          : 'Fecha',
-      onTap: () async {
-        final range = await showDateRangePicker(
-          context: context, 
-          firstDate: DateTime(2020), 
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          initialDateRange: provider.sessionDate != null 
-              ? DateTimeRange(start: provider.sessionDate!, end: provider.endDate ?? provider.sessionDate!) 
-              : null,
-          helpText: 'Seleccionar rango de fechas',
-          confirmText: 'Aceptar',
-          saveText: 'Guardar',
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: primaryBlue,
-                  onPrimary: Colors.white,
-                  surface: Colors.white,
-                  onSurface: primaryBlue,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (range != null) {
-          provider.setDateRange(range.start, range.end, widget.participantId, widget.username);
-        }
-      },
-    );
-  }
-
-  Widget _buildStartTimeButton(BuildContext context, DashboardProvider provider) {
-    return _TimeButton(
-      label: provider.startHour?.format(context) ?? 'Hora Inicio',
-      onTap: () async {
-        final time = await showTimePicker(
-          context: context, 
-          initialTime: provider.startHour ?? const TimeOfDay(hour: 0, minute: 0),
-          helpText: 'Seleccionar hora de inicio',
-          confirmText: 'Aceptar',
-          cancelText: 'Cancelar',
-          hourLabelText: 'Hora',
-          minuteLabelText: 'Minuto',
-        );
-        if (time != null) provider.setTimeRange(time, provider.endHour, widget.participantId, widget.username);
-      },
-    );
-  }
-
-  Widget _buildEndTimeButton(BuildContext context, DashboardProvider provider) {
-    return _TimeButton(
-      label: provider.endHour?.format(context) ?? 'Hora Fin',
-      onTap: () async {
-        final time = await showTimePicker(
-          context: context, 
-          initialTime: provider.endHour ?? const TimeOfDay(hour: 23, minute: 59),
-          helpText: 'Seleccionar hora de fin',
-          confirmText: 'Aceptar',
-          cancelText: 'Cancelar',
-          hourLabelText: 'Hora',
-          minuteLabelText: 'Minuto',
-        );
-        if (time != null) provider.setTimeRange(provider.startHour, time, widget.participantId, widget.username);
-      },
-    );
-  }
 
   void _exportData(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -578,7 +517,7 @@ class BiomarkerCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.black.withOpacity(0.05)),
+        side: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -726,8 +665,8 @@ class BiomarkerCard extends StatelessWidget {
       bool isProblematic = false;
       if (quality == 'worn_during_motion') { color = const Color(0xFFF59E0B); isProblematic = true; }
       else if (quality == 'worn_with_low_signal_quality') { color = const Color(0xFFEF4444); isProblematic = true; }
-      else if (quality == 'device_not_recording') { color = const Color(0xFF94A3B8).withOpacity(0.6); }
-      else if (quality == 'device_not_worn_correctly') { color = const Color(0xFF94A3B8).withOpacity(0.4); }
+      else if (quality == 'device_not_recording') { color = const Color(0xFF94A3B8).withValues(alpha: 0.6); }
+      else if (quality == 'device_not_worn_correctly') { color = const Color(0xFF94A3B8).withValues(alpha: 0.4); }
 
       return LineChartBarData(
         spots: spots,
@@ -740,7 +679,7 @@ class BiomarkerCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [color.withOpacity(isProblematic ? 0.2 : 0.1), color.withOpacity(0.0)],
+            colors: [color.withValues(alpha: isProblematic ? 0.2 : 0.1), color.withValues(alpha: 0.0)],
           ),
         ),
       );
@@ -755,7 +694,7 @@ class BiomarkerCard extends StatelessWidget {
         bars.add(LineChartBarData(
           spots: [lastSpotOfCurrent, firstSpotOfNext],
           isCurved: false,
-          color: const Color(0xFF94A3B8).withOpacity(0.4),
+          color: const Color(0xFF94A3B8).withValues(alpha: 0.4),
           barWidth: 1.5,
           dashArray: [4, 4],
           dotData: const FlDotData(show: false),
@@ -763,8 +702,8 @@ class BiomarkerCard extends StatelessWidget {
       }
     }
 
-    final sensorType = displayData.first.sensorType;
-    bool isCategorical = ['activity_class', 'body_position', 'activity_intensity', 'sleep_detection'].contains(sensorType);
+    final sType = sensorType;
+    bool isCategorical = ['activity_class', 'body_position', 'activity_intensity', 'sleep_detection'].contains(sType);
     final allValues = displayData.where((e) => e.value != null).map((e) => e.value!);
     double minY = allValues.isEmpty ? 0.0 : allValues.reduce((a, b) => a < b ? a : b);
     double maxY = allValues.isEmpty ? 100.0 : allValues.reduce((a, b) => a > b ? a : b);
@@ -775,26 +714,11 @@ class BiomarkerCard extends StatelessWidget {
     double yInterval = (maxY - minY) / 5;
     if (yInterval <= 0) yInterval = 1.0;
 
-    final provider = Provider.of<DashboardProvider>(context, listen: false);
-    
     double minX = displayData.isNotEmpty ? displayData.first.time.toUtc().millisecondsSinceEpoch.toDouble() : 0.0;
     double maxX = displayData.isNotEmpty ? displayData.last.time.toUtc().millisecondsSinceEpoch.toDouble() : 0.0;
     
-    if (provider.startHour != null && provider.sessionDate != null) {
-      final startDT = DateTime.utc(provider.sessionDate!.year, provider.sessionDate!.month, provider.sessionDate!.day, provider.startHour!.hour, provider.startHour!.minute);
-      minX = startDT.millisecondsSinceEpoch.toDouble();
-    }
-    
-    if (provider.endHour != null) {
-      final targetDate = provider.endDate ?? provider.sessionDate;
-      if (targetDate != null) {
-        final endDT = DateTime.utc(targetDate.year, targetDate.month, targetDate.day, provider.endHour!.hour, provider.endHour!.minute);
-        maxX = endDT.millisecondsSinceEpoch.toDouble();
-      }
-    }
-
     double xInterval = (maxX - minX) / 5;
-    if (xInterval <= 0) xInterval = 60000;
+    if (xInterval <= 0) xInterval = 3600000; 
 
     return LineChartData(
       minX: minX,
@@ -822,9 +746,10 @@ class BiomarkerCard extends StatelessWidget {
             getTitlesWidget: (v, meta) {
               if (v < minX || v > maxX) return const SizedBox();
               final dt = DateTime.fromMillisecondsSinceEpoch(v.toInt(), isUtc: true);
+              final format = (maxX - minX) > 86400000 ? 'dd/MM HH:mm' : 'HH:mm';
               return SideTitleWidget(
                 axisSide: meta.axisSide,
-                child: Text(DateFormat('HH:mm').format(dt), style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 10))
+                child: Text(DateFormat(format).format(dt), style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 10))
               );
             }
           )
@@ -839,16 +764,16 @@ class BiomarkerCard extends StatelessWidget {
                 final intValue = v.round();
                 if ((v - intValue).abs() > 0.1) return const SizedBox();
                 String text = '';
-                if (sensorType == 'activity_class') {
+                if (sType == 'activity_class') {
                   const labels = ['STILL', 'WALK', 'RUN', 'GENERIC'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
-                } else if (sensorType == 'body_position') {
+                } else if (sType == 'body_position') {
                   const labels = ['SIT/LIE', 'STAND', 'LEFT', 'RIGHT', 'PRONE', 'SUPINE', 'MISC'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
-                } else if (sensorType == 'activity_intensity') {
+                } else if (sType == 'activity_intensity') {
                   const labels = ['SED', 'LPA', 'MPA', 'VPA'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
-                } else if (sensorType == 'sleep_detection') {
+                } else if (sType == 'sleep_detection') {
                   const labels = ['WAKE', 'REST', 'INTERRUPT', 'RESERVED'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
                 }
@@ -890,38 +815,6 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(value, style: GoogleFonts.inter(color: primaryBlue, fontSize: 16, fontWeight: FontWeight.bold)),
       ],
-    );
-  }
-}
-
-class _TimeButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final IconData? icon;
-  const _TimeButton({required this.label, required this.onTap, this.icon});
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: primaryBlue.withOpacity(0.05),
-          border: Border.all(color: primaryBlue.withOpacity(0.1)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: primaryBlue),
-              const SizedBox(width: 6),
-            ],
-            Text(label, style: GoogleFonts.inter(color: primaryBlue, fontSize: 13, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
     );
   }
 }

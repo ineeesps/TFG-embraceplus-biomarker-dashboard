@@ -151,8 +151,8 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                       : const Divider(color: textLight, indent: 4, endIndent: 4),
                 ),
                 _buildNavItem(
-                  icon: Icons.dashboard_rounded,
-                  title: 'Inicio',
+                  icon: Icons.person_rounded,
+                  title: 'Resumen General',
                   isSelected: widget.selectedIndex == 0,
                   isExpanded: isExpanded,
                   onTap: () {

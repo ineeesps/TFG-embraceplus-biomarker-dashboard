@@ -36,10 +36,11 @@ class CategoricalAdapter(SensorAdapter):
         self.category_map = category_map
 
     def map_row(self, row, dataframe):
-        valor_raw = getattr(row, self.target_column) if self.target_column in dataframe.columns else None
-        if isinstance(valor_raw, str) and valor_raw.lower() in self.category_map:
-            return self.category_map[valor_raw.lower()]
-        return None
+        val = getattr(row, self.target_column, None)
+        if val is None or pd.isnull(val): return None
+        if isinstance(val, (int, float)): return int(val)
+        s_val = str(val).lower().strip()
+        return self.category_map.get(s_val)
 
 class SleepAdapter(SensorAdapter):
     def map_row(self, row, dataframe):
@@ -57,16 +58,18 @@ class SleepAdapter(SensorAdapter):
 
 class BodyPositionAdapter(SensorAdapter):
     def __init__(self):
-        self.category_map = {'sitting_reclining_lying': 0, 'standing': 1, 'left': 2, 'right': 3, 'prone': 4, 'supine': 5, 'miscellaneous': 6}
+        self.category_map = {
+            'sitting_reclining_lying': 0, 'standing': 1, 'left': 2, 'right': 3, 
+            'prone': 4, 'supine': 5, 'miscellaneous': 6
+        }
 
     def map_row(self, row, dataframe):
-        valor_raw = getattr(row, 'body_position_left', None) if 'body_position_left' in dataframe.columns else None
-        if pd.isnull(valor_raw):
-            valor_raw = getattr(row, 'body_position_right', None) if 'body_position_right' in dataframe.columns else None
-            
-        if isinstance(valor_raw, str) and valor_raw.lower() in self.category_map:
-            return self.category_map[valor_raw.lower()]
-        return None
+        val = getattr(row, 'body_position_left', None)
+        if pd.isnull(val): val = getattr(row, 'body_position_right', None)
+        if val is None or pd.isnull(val): return None
+        if isinstance(val, (int, float)): return int(val)
+        s_val = str(val).lower().strip()
+        return self.category_map.get(s_val)
 
 # Factoría para instanciar el adaptador correcto según el tipo de sensor detectado.
 class AdapterFactory:
@@ -136,15 +139,11 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
         db_host = os.getenv("DB_HOST", "localhost")
         db_name = os.getenv("DB_NAME", "tfg_embrace")
         db_user = os.getenv("DB_USER", "ines")
-        db_pass = os.getenv("DB_PASSWORD", "tfg_password")
+        db_pass = os.getenv("DB_PASSWORD", "123") # Cambiado a 123 por consistencia
         db_port = os.getenv("DB_PORT", "5432")
 
         conn = psycopg2.connect(
-            dbname=db_name, 
-            user=db_user, 
-            password=db_pass, 
-            host=db_host, 
-            port=db_port
+            dbname=db_name, user=db_user, password=db_pass, host=db_host, port=db_port
         )
         cur = conn.cursor()
         
@@ -155,30 +154,37 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
         invalid_rows = 0
         datos_finales = []
     
+        # Intentamos detectar la columna de tiempo de forma más flexible
+        col_tiempo = next((c for c in df.columns if c.lower() in ['time', 'timestamp', 'timestamp_iso', 'time (iso)']), None)
+
         for r in df.itertuples():
-            tiempo = getattr(r, 'time', getattr(r, 'timestamp_iso', None))
-            valor_num = adapter.map_row(r, df)
-            
-            calidad_base = getattr(r, 'quality_flag', 'good') if hasattr(r, 'quality_flag') else 'good'
-            missing_reason = getattr(r, 'missing_value_reason', None)
-            
-            valor_crudo_posible = getattr(r, 'activity_class', None)
-            if pd.isnull(valor_crudo_posible): valor_crudo_posible = getattr(r, 'activity_intensity', None)
-            if pd.isnull(valor_crudo_posible): valor_crudo_posible = getattr(r, 'body_position_left', None)
-            if pd.isnull(valor_crudo_posible): valor_crudo_posible = getattr(r, 'body_position_right', None)
-            if pd.isnull(valor_crudo_posible): valor_crudo_posible = getattr(r, 'sleep_detection_stage', None)
-            
-            calidad_final = _parse_hardware_state(calidad_base, missing_reason, valor_original=valor_crudo_posible if isinstance(valor_crudo_posible, str) else None)
+            try:
+                tiempo = getattr(r, col_tiempo) if col_tiempo else None
+                if pd.isnull(tiempo): continue # Saltamos si no hay tiempo
 
-            is_bad_signal = any(f in str(calidad_final) for f in ['device_not_recording', 'device_not_worn_correctly', 'worn_during_motion', 'low_signal_quality'])
-            
-            if is_bad_signal:
-                valor_num = None
-                invalid_rows += 1
-            
-            datos_finales.append((tiempo, participante, tipo_sensor, valor_num, calidad_final, investigador))
-
-        loss_percentage = (invalid_rows / total_rows * 100) if total_rows > 0 else 0
+                valor_num = adapter.map_row(r, df)
+                calidad_base = getattr(r, 'quality_flag', 'good') if hasattr(r, 'quality_flag') else 'good'
+                missing_reason = getattr(r, 'missing_value_reason', None)
+                
+                # Búsqueda de valor crudo para el estado del hardware
+                valor_crudo = None
+                for col in ['activity_class', 'activity_intensity', 'body_position_left', 'body_position_right', 'sleep_detection_stage']:
+                    if hasattr(r, col):
+                        v = getattr(r, col)
+                        if pd.notnull(v):
+                            valor_crudo = v
+                            break
+                
+                calidad_final = _parse_hardware_state(calidad_base, missing_reason, valor_original=str(valor_crudo) if valor_crudo else None)
+                is_bad_signal = any(f in str(calidad_final) for f in ['device_not_recording', 'device_not_worn_correctly'])
+                
+                if is_bad_signal:
+                    valor_num = None
+                    invalid_rows += 1
+                
+                datos_finales.append((tiempo, participante, tipo_sensor, valor_num, calidad_final, investigador))
+            except Exception as row_err:
+                continue # Si una fila falla, seguimos con la siguiente
 
         if datos_finales:
             sql = "INSERT INTO biomarcadores (time, participant_id, sensor_type, value, quality_flag, investigador) VALUES %s"
@@ -187,13 +193,14 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
             
         return {
             'inserted': len(datos_finales),
-            'loss_percentage': loss_percentage,
-            'clinical_warning': loss_percentage > 5.0
+            'loss_percentage': (invalid_rows / total_rows * 100) if total_rows > 0 else 0,
+            'clinical_warning': (invalid_rows / total_rows) > 0.05 if total_rows > 0 else False
         }
 
     except Exception as e:
         if 'conn' in locals(): conn.rollback()
-        raise Exception(f"Fallo en base de datos: {str(e)}")
+        print(f"DEBUG ERROR: {str(e)}")
+        raise Exception(f"Error en ingesta ({tipo_sensor}): {str(e)}")
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()

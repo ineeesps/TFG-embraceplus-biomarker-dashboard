@@ -7,7 +7,7 @@ import 'providers/dashboard_provider.dart';
 /// Punto de entrada principal de la aplicación EmbracePlus Dashboard.
 /// Configura el estado global mediante Provider y el tema visual clínico.
 void main() {
-  GoogleFonts.config.allowRuntimeFetching = false;
+  GoogleFonts.config.allowRuntimeFetching = true;
   
   runApp(
     MultiProvider(

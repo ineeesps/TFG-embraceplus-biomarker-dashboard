@@ -23,7 +23,7 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "database": os.getenv("DB_NAME", "tfg_embrace"),
     "user": os.getenv("DB_USER", "ines"),
-    "password": os.getenv("DB_PASSWORD", "tfg_password"),
+    "password": os.getenv("DB_PASSWORD", "123"),
     "port": os.getenv("DB_PORT", "5432")
 }
 
@@ -96,7 +96,8 @@ async def resumen_participantes(username: str):
                 participant_id as id,
                 MIN(time) as start_date,
                 MAX(time) as end_date,
-                SUM(CASE WHEN quality_flag NOT LIKE 'device_not%%' THEN 1 ELSE 0 END)::float / GREATEST(COUNT(*), 1) * 100 as compliance
+                SUM(CASE WHEN sensor_type = 'wearing_detection' AND quality_flag NOT LIKE 'device_not%%' THEN 1 ELSE 0 END)::float / 
+                GREATEST(SUM(CASE WHEN sensor_type = 'wearing_detection' THEN 1 ELSE 0 END), 1) * 100 as compliance
             FROM biomarcadores
             WHERE investigador = %s
             GROUP BY participant_id
@@ -240,7 +241,10 @@ async def cargar_archivo_automatico(id: str, investigador: str = None, reemplaza
     except HTTPException as http_e:
         raise http_e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+        import traceback
+        error_info = traceback.format_exc()
+        print(error_info)
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}\n{error_info}")
 
 @app.get("/participante/{id}/sensor/{sensor_type}/existe")
 async def verificar_existencia_sensor(id: str, sensor_type: str, investigador: str):
@@ -308,9 +312,14 @@ async def consultar_datos(id: str, investigador: str, start: str = None, end: st
         
         cur.execute(query, tuple(params))
         res = cur.fetchall()
+        import math
         for row in res:
             row['time'] = row['bucket'].isoformat()
             del row['bucket']
+            # Limpieza de valores para JSON (NaN/Inf -> None)
+            val = row.get('value')
+            if val is not None and (isinstance(val, float) and (math.isnan(val) or math.isinf(val))):
+                row['value'] = None
         
         cur.close()
         conn.close()

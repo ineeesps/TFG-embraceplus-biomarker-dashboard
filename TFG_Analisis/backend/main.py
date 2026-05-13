@@ -23,8 +23,8 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "database": os.getenv("DB_NAME", "tfg_embrace"),
     "user": os.getenv("DB_USER", "ines"),
-    "password": os.getenv("DB_PASSWORD", "123"),
-    "port": os.getenv("DB_PORT", "5432")
+    "password": os.getenv("DB_PASSWORD", "tfg_password"),
+    "port": os.getenv("DB_PORT", "5433")
 }
 
 PATRONES_SENSORES = {
@@ -34,7 +34,8 @@ PATRONES_SENSORES = {
     'activity-intensity': 'activity_intensity', 'wearing-detection': 'wearing_detection',
     'activity-classification': 'activity_class', 'activity-counts': 'activity_counts',
     'actigraphy-counts': 'actigraphy_vector', 'body-position': 'body_position',
-    'acticounts': 'acticounts_total', 'sleep-detection': 'sleep_detection'
+    'acticounts': 'acticounts_total', 'sleep-detection': 'sleep_detection',
+    'acticounts_x': 'acticounts_x', 'acticounts_y': 'acticounts_y', 'acticounts_z': 'acticounts_z'
 }
 
 class LoginRequest(BaseModel):
@@ -289,6 +290,8 @@ async def consultar_datos(id: str, investigador: str, start: str = None, end: st
                 CASE 
                     WHEN sensor_type IN ('activity_class', 'activity_intensity', 'body_position', 'sleep_detection') 
                     THEN mode() WITHIN GROUP (ORDER BY value)
+                    WHEN sensor_type IN ('step_count', 'acticounts_total')
+                    THEN SUM(value)
                     ELSE AVG(value)
                 END as value,
                 CASE 
@@ -383,6 +386,50 @@ async def renombrar_participante(id: str, nuevo_id: str, investigador: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/participante/{id}/metadata")
+async def obtener_metadata_participante(id: str, investigador: str):
+    """
+    Obtiene el rango temporal real y los sensores disponibles para un participante.
+    """
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Obtenemos rango temporal absoluto
+        cur.execute(
+            "SELECT MIN(time) as start_time, MAX(time) as end_time FROM biomarcadores WHERE participant_id = %s AND investigador = %s",
+            (id, investigador)
+        )
+        range_data = cur.fetchone()
+        
+        # Obtenemos el rango donde REALMENTE hay datos (no nulos)
+        cur.execute(
+            "SELECT MIN(time) as active_start, MAX(time) as active_end FROM biomarcadores WHERE participant_id = %s AND investigador = %s AND value IS NOT NULL",
+            (id, investigador)
+        )
+        active_data = cur.fetchone()
+        
+        # Obtenemos sensores únicos con datos reales
+        cur.execute(
+            "SELECT DISTINCT sensor_type FROM biomarcadores WHERE participant_id = %s AND investigador = %s AND value IS NOT NULL",
+            (id, investigador)
+        )
+        sensors = [row['sensor_type'] for row in cur.fetchall()]
+        
+        cur.close()
+        conn.close()
+        
+        return {
+            "id": id,
+            "start_time": range_data['start_time'].isoformat() if range_data['start_time'] else None,
+            "end_time": range_data['end_time'].isoformat() if range_data['end_time'] else None,
+            "active_start": active_data['active_start'].isoformat() if active_data['active_start'] else None,
+            "active_end": active_data['active_end'].isoformat() if active_data['active_end'] else None,
+            "sensors": sensors
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/participante/{id}/exportar")
 async def exportar_datos(id: str, bucket_size: str = '1 minute'):
     """
@@ -398,6 +445,8 @@ async def exportar_datos(id: str, bucket_size: str = '1 minute'):
                 CASE 
                     WHEN sensor_type IN ('activity_class', 'activity_intensity', 'body_position', 'sleep_detection') 
                     THEN mode() WITHIN GROUP (ORDER BY value)
+                    WHEN sensor_type IN ('step_count', 'acticounts_total')
+                    THEN SUM(value)
                     ELSE AVG(value)
                 END as value
             FROM biomarcadores

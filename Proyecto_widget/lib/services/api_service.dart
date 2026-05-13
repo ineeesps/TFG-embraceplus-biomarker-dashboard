@@ -43,17 +43,21 @@ class ApiService {
     }
   }
 
-  Future<List<Biomarker>> getMetrics(String participantId, String username, {String? startTime, String? endTime}) async {
+  Future<List<Biomarker>> getMetrics(
+    String participantId,
+    String username, {
+    String? startTime,
+    String? endTime,
+    String bucketSize = '30 seconds',
+  }) async {
     try {
-      String url = '$baseUrl/participante/$participantId/metricas';
-      List<String> params = ['investigador=$username'];
-      if (startTime != null) params.add('start=$startTime');
-      if (endTime != null) params.add('end=$endTime');
-      
-      if (params.isNotEmpty) {
-        url = '$url?${params.join('&')}';
-      }
-
+      final params = [
+        'investigador=$username',
+        'bucket_size=${Uri.encodeComponent(bucketSize)}',
+        if (startTime != null) 'start=${Uri.encodeComponent(startTime)}',
+        if (endTime != null)   'end=${Uri.encodeComponent(endTime)}',
+      ];
+      final url = '$baseUrl/participante/$participantId/metricas?${params.join('&')}';
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -124,6 +128,21 @@ class ApiService {
 
     if (response.statusCode != 200) {
       throw Exception('Error al renombrar: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getParticipantMetadata(String participantId, String username) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/participante/$participantId/metadata?investigador=$username'),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Error al cargar metadatos');
+      }
+    } catch (e) {
+      throw Exception('Error de conexión: $e');
     }
   }
 }

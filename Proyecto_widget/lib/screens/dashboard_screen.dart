@@ -11,13 +11,16 @@ import '../widgets/quality_legend.dart';
 import '../widgets/sidebar_layout.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/confirm_dialog.dart';
+import 'movimiento_screen.dart';
 import 'login_screen.dart';
 
 const Color primaryBlue  = Color(0xFF0F172A);
-const Color bgColor      = Color(0xFFF8FAFC);
-const Color accentTeal   = Color(0xFF0EA5E9);
-const Color nudeColor    = Color(0xFF64748B);
-const Color kBorderColor = Color(0xFFE2E8F0);
+const Color bgColor      = Color(0xFF0F172A);
+const Color accentTeal   = Color(0xFF38BDF8);
+const Color nudeColor    = Color(0xFF94A3B8);
+const Color kBorderColor = Color(0xFF334155);
+const Color _dsSurface   = Color(0xFF1E293B);
+const Color _dsBg        = Color(0xFF0F172A);
 
 class DashboardScreen extends StatefulWidget {
   final String participantId;
@@ -101,7 +104,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           case 0:
             return _buildInicio(provider);
           case 1:
-            return _buildSensorSection(provider, ['accelerometer_std', 'acticounts_total', 'step_count', 'body_position']);
+            return MovimientoScreen(
+              participantId: widget.participantId,
+              username: widget.username,
+            );
           case 2:
             return _buildSensorSection(provider, ['pulse_rate', 'respiratory_rate', 'prv']);
           case 3:
@@ -373,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         children: [
           Container(
-            color: Colors.white,
+            color: _dsSurface,
             child: TabBar(
               indicatorColor: accentTeal,
               indicatorWeight: 3,
@@ -413,22 +419,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ? Center(
                         child: Text(
                           'No hay datos para esta sección.',
-                          style: GoogleFonts.inter(color: Colors.grey.shade500),
+                          style: GoogleFonts.inter(color: nudeColor),
                         ),
                       )
-                    : ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        children: [
-                          const QualityLegend(),
-                          const SizedBox(height: 16),
-                          ...filteredMetrics.entries.map((entry) {
-                            return BiomarkerCard(
-                              sensorType: entry.key,
-                              data: entry.value,
-                              provider: provider,
-                            );
-                          }),
-                        ],
+                    : Container(
+                        color: _dsBg,
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          children: [
+                            const QualityLegend(),
+                            const SizedBox(height: 16),
+                            ...filteredMetrics.entries.map((entry) {
+                              return BiomarkerCard(
+                                sensorType: entry.key,
+                                data: entry.value,
+                                provider: provider,
+                              );
+                            }),
+                          ],
+                        ),
                       ),
                 SingleChildScrollView(
                   child: Padding(
@@ -509,60 +518,86 @@ class BiomarkerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final sensorColor = _sensorColor(sensorType);
+    return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      color: Colors.white,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
+      decoration: BoxDecoration(
+        color: _dsSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: kBorderColor),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: sensorColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(_sensorIcon(sensorType), size: 22, color: sensorColor),
+                ),
+                const SizedBox(width: 18),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         _formatSensorTitle(sensorType),
-                        style: GoogleFonts.inter(color: primaryBlue, fontSize: 16, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _sensorSubtitle(sensorType),
+                        style: GoogleFonts.inter(color: nudeColor, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
-                Row(
-                  children: [
-                    _buildStatusTag(data.first.qualityFlag),
-                  ],
-                ),
+                _buildStatusTag(data.first.qualityFlag),
               ],
             ),
-            const SizedBox(height: 12),
-            if (data.any((b) => b.value != null)) _buildStatsTable(context, data),
-            if (data.any((b) => b.value != null)) const SizedBox(height: 24),
-            if (data.any((b) => b.value != null))
-              SizedBox(
-                height: 250,
-                child: LineChart(_buildChartData(context, data)),
-              )
-            else 
-               SizedBox(
-                 height: 100, 
-                 child: Center(child: Text("Sin valores representables (Gaps de calidad)", style: GoogleFonts.inter(color: Colors.grey.shade500)))
-               ),
-          ],
-        ),
+          ),
+          const Divider(height: 1, color: kBorderColor),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (data.any((b) => b.value != null)) _buildStatsTable(context, data, sensorColor),
+                if (data.any((b) => b.value != null)) const SizedBox(height: 24),
+                if (data.any((b) => b.value != null))
+                  SizedBox(
+                    height: 250,
+                    child: LineChart(_buildChartData(context, data)),
+                  )
+                else
+                  SizedBox(
+                    height: 100,
+                    child: Center(
+                      child: Text(
+                        'Sin valores representables (gaps de calidad)',
+                        style: GoogleFonts.inter(color: nudeColor),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatsTable(BuildContext context, List<Biomarker> data) {
+  Widget _buildStatsTable(BuildContext context, List<Biomarker> data, Color sensorColor) {
     final validValues = data.where((e) => e.value != null).map((e) => e.value!).toList();
     if (validValues.isEmpty) return const SizedBox();
 
@@ -573,68 +608,102 @@ class BiomarkerCard extends StatelessWidget {
     double sd = math.sqrt(variance);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        color: _dsBg,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kBorderColor),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _StatItem(label: 'MEDIA', value: mean.toStringAsFixed(2)),
-          _StatItem(label: 'SD', value: sd.toStringAsFixed(2)),
-          _StatItem(label: 'MIN', value: min.toStringAsFixed(2)),
-          _StatItem(label: 'MAX', value: max.toStringAsFixed(2)),
+          _StatItem(label: 'MEDIA', value: mean.toStringAsFixed(2), color: sensorColor),
+          _StatItem(label: 'SD', value: sd.toStringAsFixed(2), color: nudeColor),
+          _StatItem(label: 'MIN', value: min.toStringAsFixed(2), color: nudeColor),
+          _StatItem(label: 'MAX', value: max.toStringAsFixed(2), color: nudeColor),
         ],
       ),
     );
   }
 
   String _formatSensorTitle(String sensorType) {
-    if (sensorType == 'accelerometer_std') return 'ACELERÓMETRO (STD)';
-    if (sensorType == 'acticounts_total') return 'ACTICOUNTS (TOTAL)';
-    return sensorType.toUpperCase().replaceAll('_', ' ');
+    const titles = {
+      'pulse_rate': 'Frecuencia Cardíaca',
+      'respiratory_rate': 'Tasa Respiratoria',
+      'prv': 'Variabilidad Cardíaca (PRV)',
+      'eda': 'Actividad Electrodérmica',
+      'temperature': 'Temperatura Cutánea',
+      'sleep_detection': 'Detección de Sueño',
+      'activity_class': 'Clasificación de Actividad',
+      'activity_intensity': 'Intensidad de Actividad',
+      'accelerometer_std': 'Acelerómetro (STD)',
+      'acticounts_total': 'Acticounts (Total)',
+    };
+    return titles[sensorType] ?? sensorType.replaceAll('_', ' ').toUpperCase();
+  }
+
+  String _sensorSubtitle(String sensorType) {
+    const subtitles = {
+      'pulse_rate': 'lpm · Señal fotopletismográfica',
+      'respiratory_rate': 'rpm · Estimación acelerométrica',
+      'prv': 'ms · Intervalo R-R',
+      'eda': 'µS · Respuesta galvánica de la piel',
+      'temperature': '°C · Sensor cutáneo periférico',
+      'sleep_detection': 'Estadios de sueño y vigilia',
+      'activity_class': 'Categorías de movimiento',
+      'activity_intensity': 'Equivalentes metabólicos',
+      'accelerometer_std': 'Dispersión de la señal inercial',
+      'acticounts_total': 'Magnitud vectorial de actividad',
+    };
+    return subtitles[sensorType] ?? 'Sensor biomecánico';
+  }
+
+  IconData _sensorIcon(String sensorType) {
+    switch (sensorType) {
+      case 'pulse_rate':         return LucideIcons.heartPulse;
+      case 'prv':                return LucideIcons.activity;
+      case 'respiratory_rate':   return LucideIcons.wind;
+      case 'eda':                return LucideIcons.zap;
+      case 'temperature':        return LucideIcons.thermometer;
+      case 'sleep_detection':    return LucideIcons.moon;
+      case 'activity_class':     return LucideIcons.personStanding;
+      case 'activity_intensity': return LucideIcons.gauge;
+      default:                   return LucideIcons.barChart2;
+    }
   }
 
   Widget _buildStatusTag(String flag) {
-    Color color = const Color(0xFF10B981);
+    Color color = const Color(0xFF34D399); // Emerald
     String label = 'NORMAL';
-    if (flag == 'worn_during_motion') { color = const Color(0xFFF59E0B); label = 'MOVIMIENTO'; }
-    // El backend puede devolver 'low_signal_quality' o 'worn_with_low_signal_quality'
-    else if (flag == 'worn_with_low_signal_quality' || flag == 'low_signal_quality') { color = const Color(0xFFEF4444); label = 'SEÑAL BAJA'; }
-    else if (flag == 'device_not_recording') { color = const Color(0xFF94A3B8); label = 'GAP'; }
-    else if (flag == 'device_not_worn_correctly') { color = const Color(0xFF94A3B8); label = 'NO PUESTO'; }
+    if (flag == 'worn_during_motion') { color = const Color(0xFFFBBF24); label = 'MOVIMIENTO'; }
+    else if (flag == 'worn_with_low_signal_quality' || flag == 'low_signal_quality') { color = const Color(0xFFFB7185); label = 'SEÑAL BAJA'; }
+    else if (flag == 'device_not_recording') { color = nudeColor; label = 'GAP'; }
+    else if (flag == 'device_not_worn_correctly') { color = nudeColor; label = 'NO PUESTO'; }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.2),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+      child: Text(label, style: GoogleFonts.inter(color: color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
     );
   }
 
   Color _sensorColor(String sensorType) {
     switch (sensorType) {
-      case 'pulse_rate':
-      case 'prv':              return const Color(0xFFE11D48);
-      case 'respiratory_rate': return const Color(0xFF06B6D4);
-      case 'eda':              return const Color(0xFF10B981);
-      case 'temperature':      return const Color(0xFFF59E0B);
-      case 'sleep_detection':  return const Color(0xFF6366F1);
-      case 'accelerometer_std':
-      case 'acticounts_total':
-      case 'step_count':
+      case 'pulse_rate':         return const Color(0xFFFB7185); // Rose 400
+      case 'prv':                return const Color(0xFFF43F5E); // Rose 500
+      case 'respiratory_rate':   return const Color(0xFF38BDF8); // Cyber Blue
+      case 'eda':                return const Color(0xFF34D399); // Emerald 400
+      case 'temperature':        return const Color(0xFFFBBF24); // Amber 400
+      case 'sleep_detection':    return const Color(0xFF818CF8); // Indigo 400
       case 'activity_class':
-      case 'activity_intensity':
-      case 'met':
-      case 'activity_counts':
-      case 'actigraphy_vector':
-      case 'body_position':    return const Color(0xFF475569);
-      default:                 return accentTeal;
+      case 'activity_intensity': return const Color(0xFFA78BFA); // Violet 400
+      case 'accelerometer_std':
+      case 'acticounts_total':   return const Color(0xFF38BDF8); // Cyber Blue
+      default:                   return accentTeal;
     }
   }
 
@@ -747,11 +816,11 @@ class BiomarkerCard extends StatelessWidget {
       maxY: maxY,
       clipData: const FlClipData.all(),
       gridData: FlGridData(
-        show: true, 
-        horizontalInterval: yInterval, 
+        show: true,
+        horizontalInterval: yInterval,
         verticalInterval: xInterval,
-        getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey.shade200, strokeWidth: 1),
-        getDrawingVerticalLine: (v) => FlLine(color: Colors.grey.shade100, strokeWidth: 1),
+        getDrawingHorizontalLine: (v) => FlLine(color: kBorderColor.withValues(alpha: 0.3), strokeWidth: 1),
+        getDrawingVerticalLine: (v) => FlLine(color: kBorderColor.withValues(alpha: 0.15), strokeWidth: 1),
         drawVerticalLine: true,
       ),
       titlesData: FlTitlesData(
@@ -769,7 +838,7 @@ class BiomarkerCard extends StatelessWidget {
               final format = (maxX - minX) > 86400000 ? 'dd/MM HH:mm' : 'HH:mm';
               return SideTitleWidget(
                 axisSide: meta.axisSide,
-                child: Text(DateFormat(format).format(dt), style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 10))
+                child: Text(DateFormat(format).format(dt), style: GoogleFonts.inter(color: nudeColor, fontSize: 10))
               );
             }
           )
@@ -797,9 +866,9 @@ class BiomarkerCard extends StatelessWidget {
                   const labels = ['WAKE', 'REST', 'INTERRUPT', 'RESERVED'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
                 }
-                return SideTitleWidget(axisSide: meta.axisSide, space: 10, child: Text(text, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 8)));
+                return SideTitleWidget(axisSide: meta.axisSide, space: 10, child: Text(text, style: GoogleFonts.inter(color: nudeColor, fontSize: 8)));
               }
-              return SideTitleWidget(axisSide: meta.axisSide, space: 8, child: Text(v >= 1000 ? '${(v/1000).toStringAsFixed(1)}k' : v.toStringAsFixed(0), style: GoogleFonts.inter(color: primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)));
+              return SideTitleWidget(axisSide: meta.axisSide, space: 8, child: Text(v >= 1000 ? '${(v/1000).toStringAsFixed(1)}k' : v.toStringAsFixed(0), style: GoogleFonts.inter(color: nudeColor, fontSize: 10, fontWeight: FontWeight.bold)));
             }
           )
         ),
@@ -808,7 +877,7 @@ class BiomarkerCard extends StatelessWidget {
       lineBarsData: bars,
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
-          getTooltipColor: (_) => primaryBlue,
+          getTooltipColor: (_) => _dsSurface,
           getTooltipItems: (touchedSpots) {
             return touchedSpots.map((spot) {
               return LineTooltipItem(
@@ -826,14 +895,16 @@ class BiomarkerCard extends StatelessWidget {
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
-  const _StatItem({required this.label, required this.value});
+  final Color? color;
+  const _StatItem({required this.label, required this.value, this.color});
   @override
   Widget build(BuildContext context) {
+    final c = color ?? accentTeal;
     return Column(
       children: [
-        Text(label, style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-        const SizedBox(height: 4),
-        Text(value, style: GoogleFonts.inter(color: primaryBlue, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(label, style: GoogleFonts.inter(color: nudeColor, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+        const SizedBox(height: 6),
+        Text(value, style: GoogleFonts.outfit(color: c, fontSize: 20, fontWeight: FontWeight.bold)),
       ],
     );
   }

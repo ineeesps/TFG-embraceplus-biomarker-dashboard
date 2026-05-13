@@ -14,7 +14,8 @@ class DefaultAdapter(SensorAdapter):
         self.target_column = target_column
 
     def map_row(self, row, dataframe):
-        return getattr(row, self.target_column) if self.target_column in dataframe.columns else None
+        val = getattr(row, self.target_column) if self.target_column in dataframe.columns else None
+        return [(self.target_column, val)] # Devolvemos lista de tuplas
 
 # Adaptador específico para Acticounts (Calcula magnitud vectorial desde ejes X, Y, Z).
 class ActicountsAdapter(SensorAdapter):
@@ -23,11 +24,19 @@ class ActicountsAdapter(SensorAdapter):
             x = getattr(row, 'acticounts_x_axis', None)
             y = getattr(row, 'acticounts_y_axis', None)
             z = getattr(row, 'acticounts_z_axis', None)
+            
+            res = []
+            if pd.notnull(x): res.append(('acticounts_x', float(x)))
+            if pd.notnull(y): res.append(('acticounts_y', float(y)))
+            if pd.notnull(z): res.append(('acticounts_z', float(z)))
+            
             if pd.notnull(x) and pd.notnull(y) and pd.notnull(z):
-                return math.sqrt(float(x)**2 + float(y)**2 + float(z)**2)
+                mag = math.sqrt(float(x)**2 + float(y)**2 + float(z)**2)
+                res.append(('acticounts_total', mag))
+            return res
         except:
             pass
-        return None
+        return []
 
 # Adaptador para variables categóricas (Mapeo de texto a valores numéricos discretos).
 class CategoricalAdapter(SensorAdapter):
@@ -37,10 +46,10 @@ class CategoricalAdapter(SensorAdapter):
 
     def map_row(self, row, dataframe):
         val = getattr(row, self.target_column, None)
-        if val is None or pd.isnull(val): return None
-        if isinstance(val, (int, float)): return int(val)
+        if val is None or pd.isnull(val): return [(self.target_column, None)]
+        if isinstance(val, (int, float)): return [(self.target_column, int(val))]
         s_val = str(val).lower().strip()
-        return self.category_map.get(s_val)
+        return [(self.target_column, self.category_map.get(s_val))]
 
 class SleepAdapter(SensorAdapter):
     def map_row(self, row, dataframe):
@@ -48,13 +57,15 @@ class SleepAdapter(SensorAdapter):
         if pd.notnull(valor_raw):
             try:
                 v = float(valor_raw)
-                if 0 <= v <= 99: return 0  # Wake
-                elif 100 <= v <= 299: return 1  # Rest/Sleep
-                elif 300 <= v <= 399: return 2  # Interruption
-                elif v == 400: return 3  # Reserved
+                if 0 <= v <= 99: res = 0
+                elif 100 <= v <= 299: res = 1
+                elif 300 <= v <= 399: res = 2
+                elif v == 400: res = 3
+                else: res = None
+                return [('sleep_detection', res)]
             except:
                 pass
-        return None
+        return [('sleep_detection', None)]
 
 class BodyPositionAdapter(SensorAdapter):
     def __init__(self):
@@ -66,10 +77,10 @@ class BodyPositionAdapter(SensorAdapter):
     def map_row(self, row, dataframe):
         val = getattr(row, 'body_position_left', None)
         if pd.isnull(val): val = getattr(row, 'body_position_right', None)
-        if val is None or pd.isnull(val): return None
-        if isinstance(val, (int, float)): return int(val)
+        if val is None or pd.isnull(val): return [('body_position', None)]
+        if isinstance(val, (int, float)): return [('body_position', int(val))]
         s_val = str(val).lower().strip()
-        return self.category_map.get(s_val)
+        return [('body_position', self.category_map.get(s_val))]
 
 # Factoría para instanciar el adaptador correcto según el tipo de sensor detectado.
 class AdapterFactory:
@@ -160,13 +171,15 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
         for r in df.itertuples():
             try:
                 tiempo = getattr(r, col_tiempo) if col_tiempo else None
-                if pd.isnull(tiempo): continue # Saltamos si no hay tiempo
+                if pd.isnull(tiempo): continue
 
-                valor_num = adapter.map_row(r, df)
+                resultados = adapter.map_row(r, df)
+                if not isinstance(resultados, list):
+                    resultados = [(tipo_sensor, resultados)]
+
                 calidad_base = getattr(r, 'quality_flag', 'good') if hasattr(r, 'quality_flag') else 'good'
                 missing_reason = getattr(r, 'missing_value_reason', None)
                 
-                # Búsqueda de valor crudo para el estado del hardware
                 valor_crudo = None
                 for col in ['activity_class', 'activity_intensity', 'body_position_left', 'body_position_right', 'sleep_detection_stage']:
                     if hasattr(r, col):
@@ -177,14 +190,14 @@ def cargar_csv_a_timescale(archivo_nombre, tipo_sensor, participante, investigad
                 
                 calidad_final = _parse_hardware_state(calidad_base, missing_reason, valor_original=str(valor_crudo) if valor_crudo else None)
                 is_bad_signal = any(f in str(calidad_final) for f in ['device_not_recording', 'device_not_worn_correctly'])
-                
-                if is_bad_signal:
-                    valor_num = None
-                    invalid_rows += 1
-                
-                datos_finales.append((tiempo, participante, tipo_sensor, valor_num, calidad_final, investigador))
-            except Exception as row_err:
-                continue # Si una fila falla, seguimos con la siguiente
+                if is_bad_signal: invalid_rows += 1
+
+                for s_type, s_val in resultados:
+                    if s_val is None and not is_bad_signal:
+                        continue
+                    datos_finales.append((tiempo, participante, s_type, s_val, calidad_final, investigador))
+            except Exception:
+                continue
 
         if datos_finales:
             sql = "INSERT INTO biomarcadores (time, participant_id, sensor_type, value, quality_flag, investigador) VALUES %s"

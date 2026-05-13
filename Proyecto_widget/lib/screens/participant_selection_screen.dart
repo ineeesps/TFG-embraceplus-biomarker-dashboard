@@ -4,6 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
 import '../widgets/sidebar_layout.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/confirm_dialog.dart';
 import '../services/api_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -259,16 +261,15 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                               if (mounted) {
                                 // ignore: use_build_context_synchronously
                                 Navigator.pop(context);
-                                // ignore: use_build_context_synchronously
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Subida completada: $successCount correctos, $errorCount errores.'),
-                                    backgroundColor: errorCount == 0 ? Colors.green : Colors.orange,
-                                  )
+                                AppToast.show(
+                                  // ignore: use_build_context_synchronously
+                                  context,
+                                  errorCount == 0
+                                    ? 'Subida completada: $successCount archivos correctos'
+                                    : 'Subida parcial: $successCount correctos, $errorCount errores',
+                                  type: errorCount == 0 ? ToastType.success : ToastType.error,
                                 );
-                                setState(() {
-                                  _isLoading = true;
-                                });
+                                setState(() { _isLoading = true; });
                                 _loadData();
                               }
                             }
@@ -304,41 +305,40 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
       }
     );
   }
-  void _logout() {
-    Navigator.pushReplacement(
+  Future<void> _logout() async {
+    final confirmed = await showConfirmDialog(
       context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      title: 'Cerrar Sesión',
+      message: '¿Estás seguro de que deseas cerrar la sesión? Volverás a la pantalla de inicio.',
+      confirmLabel: 'Cerrar Sesión',
+      icon: LucideIcons.logOut,
     );
+    if (confirmed && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
   }
 
   /// Elimina un participante y todos sus datos asociados
   Future<void> _deleteParticipant(String id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Eliminar Participante', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-        content: Text('¿Estás seguro de que quieres eliminar a $id? Esta acción borrará todos sus datos clínicos de forma permanente.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCELAR')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('ELIMINAR', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Eliminar Participante',
+      message: '¿Estás seguro de que quieres eliminar a "$id"? Esta acción borrará todos sus datos clínicos de forma permanente y no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      icon: LucideIcons.trash2,
+      isDangerous: true,
     );
 
     if (confirmed == true) {
       try {
         await ApiService().deleteParticipant(id, widget.username);
         _loadData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Participante eliminado correctamente')));
-        }
+        if (mounted) AppToast.show(context, 'Participante eliminado correctamente', type: ToastType.success);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-        }
+        if (mounted) AppToast.show(context, 'Error al eliminar: $e', type: ToastType.error);
       }
     }
   }
@@ -403,10 +403,9 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
       try {
         await ApiService().renameParticipant(oldId, newId, widget.username);
         _loadData();
+        if (mounted) AppToast.show(context, 'Participante renombrado correctamente', type: ToastType.success);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-        }
+        if (mounted) AppToast.show(context, 'Error al renombrar: $e', type: ToastType.error);
       }
     }
   }

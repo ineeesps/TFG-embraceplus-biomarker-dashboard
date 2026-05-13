@@ -9,6 +9,8 @@ import '../providers/dashboard_provider.dart';
 import '../models/biomarker.dart';
 import '../widgets/quality_legend.dart';
 import '../widgets/sidebar_layout.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/confirm_dialog.dart';
 import 'login_screen.dart';
 
 const Color primaryBlue  = Color(0xFF0F172A);
@@ -37,18 +39,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(
+  Future<void> _logout() async {
+    final confirmed = await showConfirmDialog(
       context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false,
+      title: 'Cerrar Sesión',
+      message: '¿Estás seguro de que deseas cerrar la sesión? Volverás a la pantalla de inicio.',
+      confirmLabel: 'Cerrar Sesión',
+      icon: LucideIcons.logOut,
     );
+    if (confirmed && mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
 
   void _showUploadNotAvailable() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Para subir datos, vuelve a la pantalla de Inicio (Home)')),
-    );
+    AppToast.show(context, 'Para subir datos, ve a la pantalla de Participantes', type: ToastType.info);
   }
 
   @override
@@ -487,12 +496,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   void _exportData(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Exportando datos de ${widget.participantId}...'),
-        backgroundColor: Colors.blue.shade900,
-      ),
-    );
+    AppToast.show(context, 'Exportando datos de ${widget.participantId}...', type: ToastType.info);
   }
 }
 

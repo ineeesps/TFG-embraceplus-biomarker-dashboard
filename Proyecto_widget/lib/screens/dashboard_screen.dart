@@ -16,6 +16,7 @@ import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import 'movimiento_screen.dart';
 import 'cardiaco_screen.dart';
+import 'estres_screen.dart';
 import 'login_screen.dart';
 
 const Color primaryBlue  = AppColors.textPrimary;
@@ -117,7 +118,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               username: widget.username,
             );
           case 3:
-            return _buildSensorSection(provider, ['eda', 'temperature']);
+            return EstresScreen(
+              participantId: widget.participantId,
+              username: widget.username,
+            );
           case 4:
             return _buildSensorSection(provider, ['sleep_detection', 'activity_class', 'activity_intensity']);
           default:

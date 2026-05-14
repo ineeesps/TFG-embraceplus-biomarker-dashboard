@@ -182,8 +182,8 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   },
                 ),
                 _buildNavItem(
-                  icon: LucideIcons.thermometer,
-                  title: 'Estrés y Temperatura',
+                  icon: LucideIcons.brainCircuit,
+                  title: 'Estrés y Fisiología',
                   isSelected: widget.selectedIndex == 3,
                   isExpanded: isExpanded,
                   onTap: () {

@@ -18,7 +18,13 @@ const List<String> kMovimientoSensores = [
 const List<String> kCardiacoSensores = [
   'pulse_rate',
   'respiratory_rate',
+];
+
+const List<String> kEstresSensores = [
+  'eda',
+  'temperature',
   'prv',
+  'met',
 ];
 
 const List<int> kHourOptions = [1, 3, 6, 12, 24];
@@ -29,35 +35,45 @@ class DashboardProvider with ChangeNotifier {
   List<Biomarker> _metrics = [];
   List<Biomarker> _movimientoMetrics = [];
   List<Biomarker> _cardiacoMetrics = [];
+  List<Biomarker> _estresMetrics = [];
   bool _isLoading = false;
   bool _isMovimientoLoading = false;
   bool _isCardiacoLoading = false;
+  bool _isEstresLoading = false;
   String? _error;
-
+ 
   DateTime? _movimientoStart;
   DateTime? _movimientoEnd;
   DateTime? _cardiacoStart;
   DateTime? _cardiacoEnd;
+  DateTime? _estresStart;
+  DateTime? _estresEnd;
   DateTime? _dataRangeStart;
   DateTime? _dataRangeEnd;
   int _selectedHours = 24;
   int _selectedCardiacoHours = 24;
+  int _selectedEstresHours = 24;
 
   List<Biomarker> get metrics           => _metrics;
   List<Biomarker> get movimientoMetrics => _movimientoMetrics;
   List<Biomarker> get cardiacoMetrics   => _cardiacoMetrics;
+  List<Biomarker> get estresMetrics     => _estresMetrics;
   bool get isLoading                    => _isLoading;
   bool get isMovimientoLoading          => _isMovimientoLoading;
   bool get isCardiacoLoading            => _isCardiacoLoading;
+  bool get isEstresLoading              => _isEstresLoading;
   String? get error                     => _error;
   DateTime? get movimientoStart         => _movimientoStart;
   DateTime? get movimientoEnd           => _movimientoEnd;
   DateTime? get cardiacoStart           => _cardiacoStart;
   DateTime? get cardiacoEnd             => _cardiacoEnd;
+  DateTime? get estresStart             => _estresStart;
+  DateTime? get estresEnd               => _estresEnd;
   DateTime? get dataRangeStart          => _dataRangeStart;
   DateTime? get dataRangeEnd            => _dataRangeEnd;
   int get selectedHours                 => _selectedHours;
   int get selectedCardiacoHours         => _selectedCardiacoHours;
+  int get selectedEstresHours           => _selectedEstresHours;
 
   static String _bucketForHours(int hours) {
     if (hours <= 1)  return '30 seconds';
@@ -80,6 +96,12 @@ class DashboardProvider with ChangeNotifier {
     return bucket.replaceAll(' seconds', ' seg').replaceAll(' minutes', ' min');
   }
 
+  String get estresResolucion {
+    if (_estresStart == null || _estresEnd == null) return '';
+    final bucket = _bucketForHours(_selectedEstresHours);
+    return bucket.replaceAll(' seconds', ' seg').replaceAll(' minutes', ' min');
+  }
+
   void _applyHourFilter() {
     if (_dataRangeEnd == null || _dataRangeStart == null) return;
     final end = _dataRangeEnd!;
@@ -90,6 +112,10 @@ class DashboardProvider with ChangeNotifier {
     final startCar = end.subtract(Duration(hours: _selectedCardiacoHours));
     _cardiacoEnd   = end;
     _cardiacoStart = startCar.isBefore(_dataRangeStart!) ? _dataRangeStart! : startCar;
+
+    final startEst = end.subtract(Duration(hours: _selectedEstresHours));
+    _estresEnd   = end;
+    _estresStart = startEst.isBefore(_dataRangeStart!) ? _dataRangeStart! : startEst;
   }
 
   Future<void> fetchMetrics(String participantId, String username) async {
@@ -159,12 +185,36 @@ class DashboardProvider with ChangeNotifier {
     }
   }
 
+  Future<void> fetchEstresMetrics(String participantId, String username) async {
+    if (_estresStart == null || _estresEnd == null) return;
+    _isEstresLoading = true;
+    notifyListeners();
+    try {
+      final bucket = _bucketForHours(_selectedEstresHours);
+      final all = await _apiService.getMetrics(
+        participantId,
+        username,
+        startTime: _estresStart!.toUtc().toIso8601String(),
+        endTime:   _estresEnd!.toUtc().toIso8601String(),
+        bucketSize: bucket,
+      );
+      _estresMetrics = all.where((m) => kEstresSensores.contains(m.sensorType)).toList();
+    } catch (_) {
+      _estresMetrics = [];
+    } finally {
+      _isEstresLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> setHourFilter(int hours, String participantId, String username) async {
     _selectedHours = hours;
     _selectedCardiacoHours = hours;
+    _selectedEstresHours = hours;
     _applyHourFilter();
     await fetchMovimientoMetrics(participantId, username);
     await fetchCardiacoMetrics(participantId, username);
+    await fetchEstresMetrics(participantId, username);
   }
 
   Future<void> setMovimientoRango(
@@ -189,6 +239,18 @@ class DashboardProvider with ChangeNotifier {
     _cardiacoEnd   = end;
     _selectedCardiacoHours = _durationToNearestHours(end.difference(start));
     await fetchCardiacoMetrics(participantId, username);
+  }
+
+  Future<void> setEstresRango(
+    DateTime start,
+    DateTime end,
+    String participantId,
+    String username,
+  ) async {
+    _estresStart = start;
+    _estresEnd   = end;
+    _selectedEstresHours = _durationToNearestHours(end.difference(start));
+    await fetchEstresMetrics(participantId, username);
   }
 
   static int _durationToNearestHours(Duration d) {

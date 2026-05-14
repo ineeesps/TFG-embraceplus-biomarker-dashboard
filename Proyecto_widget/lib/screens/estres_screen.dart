@@ -484,8 +484,9 @@ class _KPICard extends StatelessWidget {
                         Tooltip(
                           message: tooltip,
                           padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(horizontal: 24),
                           decoration: BoxDecoration(
-                            color: _tooltipBg,
+                            color: _text.withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)
@@ -535,31 +536,33 @@ class _ReactividadGraphLayer extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _edaColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(LucideIcons.activity, size: 16, color: _edaColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Análisis de Respuesta al Estrés',
-                        style: GoogleFonts.outfit(
-                          fontSize: isMobile ? 16 : 18, 
-                          fontWeight: FontWeight.bold, 
-                          color: _text
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _edaColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(LucideIcons.activity, size: 16, color: _edaColor),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Análisis de Respuesta al Estrés',
+                          style: GoogleFonts.outfit(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold, color: _text),
+                        ),
+                      ],
                     ),
                     Tooltip(
                       message: "Permite identificar eventos de activación del sistema nervioso simpático. Una caída de la PRV coincidente con un aumento de la EDA es un biomarcador robusto de estrés psicológico.",
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: _tooltipBg, borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: _text.withValues(alpha: 0.95), borderRadius: BorderRadius.circular(8)),
                       textStyle: GoogleFonts.inter(color: Colors.white, fontSize: 11),
                       child: Icon(LucideIcons.info, size: 14, color: _muted.withValues(alpha: 0.5)),
                     ),

@@ -248,7 +248,10 @@ class DashboardProvider with ChangeNotifier {
         endTime:   _suenoEnd!.toUtc().toIso8601String(),
         bucketSize: bucket,
       );
-      _suenoMetrics = all.where((m) => kSuenoSensores.contains(m.sensorType)).toList();
+      _suenoMetrics = all.where((m) {
+        final norm = m.sensorType.toLowerCase().replaceAll('-', '_');
+        return kSuenoSensores.contains(norm);
+      }).toList();
     } catch (_) {
       _suenoMetrics = [];
     } finally {
@@ -407,10 +410,11 @@ class DashboardProvider with ChangeNotifier {
     switch (pos.last.value!.toInt()) {
       case 0: return 'Sentado / Reclinado';
       case 1: return 'De pie';
-      case 2: return 'Lateral Izquierdo';
-      case 3: return 'Lateral Derecho';
-      case 4: return 'Prono (Boca abajo)';
-      case 5: return 'Supino (Boca arriba)';
+      case 2: return 'Izquierda';
+      case 3: return 'Derecha';
+      case 4: return 'Arriba';
+      case 5: return 'Abajo';
+      case 6: return 'Transición';
       default: return 'Desconocido';
     }
   }

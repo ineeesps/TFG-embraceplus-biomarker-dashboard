@@ -17,18 +17,20 @@ const Color _muted   = AppColors.textSecondary;
 const Color _border  = AppColors.border;
 
 const Color _suenoColor = Color(0xFF3B82F6); 
-const Color _tooltipBg  = Color(0xFF0F172A);
 
 // Midnight Analysis Palette
 const Color _deepSleep  = Color(0xFF312E81); // Indigo Oscuro
 const Color _lightSleep = Color(0xFF818CF8); // Lavanda
 const Color _awake      = Color(0xFFFDE68A); // Ambar suave
 
-// Posture Palette
-const Color _posSupine  = Color(0xFF6366F1); // Indigo 500
-const Color _posLateral = Color(0xFF818CF8); // Indigo 400
-const Color _posProne   = Color(0xFFA5B4FC); // Indigo 300
-const Color _posAnomaly = Color(0xFFFB7185); // Rosa Coral
+// Posture Palette (Clinical Labels: Sitting, Standing, Left, Right, Top, Bottom, Misc)
+const Color _posLeft     = Color(0xFF6366F1); // Indigo 500
+const Color _posRight    = Color(0xFF818CF8); // Indigo 400
+const Color _posTop      = Color(0xFFA5B4FC); // Indigo 300
+const Color _posBottom   = Color(0xFFC7D2FE); // Indigo 200
+const Color _posSitting  = Color(0xFF38BDF8); // Sky Blue 400 (Tranquilo)
+const Color _posStanding = Color(0xFFF97316); // Orange 500 (Activo)
+const Color _posMisc     = Color(0xFFE2E8F0); // Slate 200
 
 class SuenoScreen extends StatefulWidget {
   final String participantId;
@@ -58,7 +60,8 @@ class _SuenoScreenState extends State<SuenoScreen> {
 
         final byType = <String, List<Biomarker>>{};
         for (var m in provider.suenoMetrics) {
-          byType.putIfAbsent(m.sensorType, () => []).add(m);
+          final type = m.sensorType.toLowerCase().replaceAll('-', '_');
+          byType.putIfAbsent(type, () => []).add(m);
         }
 
         final sleepDetData = byType['sleep_detection'] ?? [];
@@ -468,7 +471,7 @@ class _KPIsLayer extends StatelessWidget {
             value: posData.isEmpty ? '--' : '$postureChanges cambios',
             subtitle: 'Rotaciones significativas',
             icon: LucideIcons.refreshCw,
-            color: _posLateral,
+            color: _posLeft,
             tooltip: "Número total de cambios de postura detectados. Un número excesivamente alto indica inquietud física que puede mermar la calidad de las fases profundas del sueño.",
           ),
         ];
@@ -556,8 +559,9 @@ class _KPICard extends StatelessWidget {
                         Tooltip(
                           message: tooltip,
                           padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(horizontal: 24),
                           decoration: BoxDecoration(
-                            color: _tooltipBg,
+                            color: _text.withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)
@@ -607,31 +611,33 @@ class _HipnogramaLayer extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _deepSleep.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(LucideIcons.activity, size: 16, color: _deepSleep),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Hipnograma de Ciclos de Descanso',
-                        style: GoogleFonts.outfit(
-                          fontSize: isMobile ? 16 : 18, 
-                          fontWeight: FontWeight.bold, 
-                          color: _text
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _deepSleep.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(LucideIcons.activity, size: 16, color: _deepSleep),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Hipnograma de Ciclos de Descanso',
+                          style: GoogleFonts.outfit(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold, color: _text),
+                        ),
+                      ],
                     ),
                     Tooltip(
                       message: "Representa la profundidad del sueño. Los ciclos deberían durar aprox. 90 minutos. Demasiados picos hacia 'Despierto' indican una alta fragmentación del sueño (WASO).",
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: _tooltipBg, borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: _text.withValues(alpha: 0.95), borderRadius: BorderRadius.circular(8)),
                       textStyle: GoogleFonts.inter(color: Colors.white, fontSize: 11),
                       child: Icon(LucideIcons.info, size: 14, color: _muted.withValues(alpha: 0.5)),
                     ),
@@ -799,31 +805,33 @@ class _GanttPosturalLayer extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _posSupine.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(LucideIcons.refreshCw, size: 16, color: _posSupine),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Análisis de Higiene Postural',
-                        style: GoogleFonts.outfit(
-                          fontSize: isMobile ? 16 : 18, 
-                          fontWeight: FontWeight.bold, 
-                          color: _text
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _posLeft.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(LucideIcons.refreshCw, size: 16, color: _posLeft),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Análisis de Posición Corporal',
+                          style: GoogleFonts.outfit(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold, color: _text),
+                        ),
+                      ],
                     ),
                     Tooltip(
-                      message: "Permite correlacionar la calidad del sueño con la posición física. Cambios de postura excesivos pueden indicar inquietud o incomodidad física.",
+                      message: "Registra los 7 estados de posición cualitativa: Sitting, Standing, Left, Right, Top, Bottom y Miscellaneous, capturados por el acelerómetro del dispositivo.",
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: _tooltipBg, borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: _text.withValues(alpha: 0.95), borderRadius: BorderRadius.circular(8)),
                       textStyle: GoogleFonts.inter(color: Colors.white, fontSize: 11),
                       child: Icon(LucideIcons.info, size: 14, color: _muted.withValues(alpha: 0.5)),
                     ),
@@ -834,24 +842,36 @@ class _GanttPosturalLayer extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Mantenimiento de la posición corporal durante el periodo de reposo.', 
-                        style: GoogleFonts.inter(color: _muted, fontSize: 12)),
-                      const SizedBox(height: 12),
+                      Text(
+                        'Mantenimiento de la posición física durante el periodo de estudio (vigilia y reposo).',
+                        style: GoogleFonts.inter(fontSize: 11, color: _muted),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDistributionSummary(posData),
+                      const SizedBox(height: 16),
                       _buildLegend(),
                     ],
                   )
                 else
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text('Mantenimiento de la posición corporal durante el periodo de reposo.', 
-                          style: GoogleFonts.inter(color: _muted, fontSize: 13)),
+                        flex: 2,
+                        child: Text(
+                          'Mantenimiento de la posición física durante el periodo de estudio (vigilia y reposo).',
+                          style: GoogleFonts.inter(color: _muted, fontSize: 13),
+                        ),
                       ),
-                      const SizedBox(width: 16),
-                      _buildLegend(),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        flex: 3,
+                        child: _buildDistributionSummary(posData),
+                      ),
                     ],
                   ),
+                const SizedBox(height: 24),
+                if (!isMobile) _buildLegend(),
               ],
             ),
           ),
@@ -875,15 +895,71 @@ class _GanttPosturalLayer extends StatelessWidget {
     );
   }
 
+  Widget _buildDistributionSummary(List<Biomarker> data) {
+    if (data.isEmpty) return const SizedBox();
+    
+    final counts = <int, int>{};
+    for (var d in data) {
+      if (d.value != null) {
+        int val = d.value!.toInt();
+        counts[val] = (counts[val] ?? 0) + 1;
+      }
+    }
+    
+    final total = data.length;
+    
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      children: counts.entries.map((e) {
+        String label = '';
+        Color color = _posMisc;
+        switch (e.key) {
+          case 0: label = 'Sentado'; color = _posSitting; break;
+          case 1: label = 'De pie';  color = _posStanding; break;
+          case 2: label = 'Izquierda'; color = _posLeft; break;
+          case 3: label = 'Derecha'; color = _posRight; break;
+          case 4: label = 'Arriba';  color = _posTop; break;
+          case 5: label = 'Abajo';   color = _posBottom; break;
+          default: label = 'Transición'; color = _posMisc;
+        }
+        
+        final pct = (e.value / total * 100).toStringAsFixed(0);
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Text(
+            '$label: $pct%',
+            style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildLegend() {
     return Wrap(
       spacing: 12,
       runSpacing: 8,
       children: [
-        _LegendItem(label: 'Supino', color: _posSupine),
-        _LegendItem(label: 'Lateral', color: _posLateral),
-        _LegendItem(label: 'Prono', color: _posProne),
-        _LegendItem(label: 'Anomalía', color: _posAnomaly),
+        _LegendItem(label: 'Sentado', color: _posSitting),
+        const SizedBox(width: 12),
+        _LegendItem(label: 'De pie', color: _posStanding),
+        const SizedBox(width: 12),
+        _LegendItem(label: 'Izquierda', color: _posLeft),
+        const SizedBox(width: 12),
+        _LegendItem(label: 'Derecha', color: _posRight),
+        const SizedBox(width: 12),
+        _LegendItem(label: 'Arriba', color: _posTop),
+        const SizedBox(width: 12),
+        _LegendItem(label: 'Abajo', color: _posBottom),
+        const SizedBox(width: 12),
+        _LegendItem(label: 'Transición', color: _posMisc),
       ],
     );
   }
@@ -900,6 +976,7 @@ class _GanttPosturalLayer extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
       child: CustomPaint(
+        size: Size.infinite,
         painter: _PosturalGanttPainter(
           data: posData,
           minX: minX,
@@ -952,17 +1029,17 @@ class _PosturalGanttPainter extends CustomPainter {
     if (range <= 0) return;
     
     for (int i = 0; i < data.length; i++) {
-      Color barColor = _posSupine;
-      final val = data[i].value;
+      Color barColor = _posLeft;
+      final val = data[i].value?.toInt();
       if (val != null) {
-        if (val == 5) {
-          barColor = _posSupine;
-        } else if (val == 2 || val == 3) {
-          barColor = _posLateral;
-        } else if (val == 4) {
-          barColor = _posProne;
-        } else {
-          barColor = _posAnomaly;
+        switch (val) {
+          case 0: barColor = _posSitting;  break;
+          case 1: barColor = _posStanding; break;
+          case 2: barColor = _posLeft;     break;
+          case 3: barColor = _posRight;    break;
+          case 4: barColor = _posTop;      break;
+          case 5: barColor = _posBottom;   break;
+          default: barColor = _posMisc;
         }
       }
       

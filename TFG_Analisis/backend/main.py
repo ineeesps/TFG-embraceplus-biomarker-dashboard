@@ -49,7 +49,7 @@ INVESTIGADORES = {
     },
     "ines": {
         "password": "123",
-        "participantes": [f"user{i}" for i in range(1, 21)]
+        "participantes": ["PRUEBA_SUEÑO"] + [f"user{i}" for i in range(1, 21)]
     }
 }
 

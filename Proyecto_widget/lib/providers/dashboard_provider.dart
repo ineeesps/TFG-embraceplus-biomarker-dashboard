@@ -27,6 +27,14 @@ const List<String> kEstresSensores = [
   'met',
 ];
 
+const List<String> kSuenoSensores = [
+  'sleep_detection',
+  'sleep_stages',
+  'body_position',
+  'activity_class',
+  'pulse_rate',
+];
+
 const List<int> kHourOptions = [1, 3, 6, 12, 24];
 
 class DashboardProvider with ChangeNotifier {
@@ -36,10 +44,12 @@ class DashboardProvider with ChangeNotifier {
   List<Biomarker> _movimientoMetrics = [];
   List<Biomarker> _cardiacoMetrics = [];
   List<Biomarker> _estresMetrics = [];
+  List<Biomarker> _suenoMetrics = [];
   bool _isLoading = false;
   bool _isMovimientoLoading = false;
   bool _isCardiacoLoading = false;
   bool _isEstresLoading = false;
+  bool _isSuenoLoading = false;
   String? _error;
  
   DateTime? _movimientoStart;
@@ -48,11 +58,14 @@ class DashboardProvider with ChangeNotifier {
   DateTime? _cardiacoEnd;
   DateTime? _estresStart;
   DateTime? _estresEnd;
+  DateTime? _suenoStart;
+  DateTime? _suenoEnd;
   DateTime? _dataRangeStart;
   DateTime? _dataRangeEnd;
   int _selectedHours = 24;
   int _selectedCardiacoHours = 24;
   int _selectedEstresHours = 24;
+  int _selectedSuenoHours = 24;
 
   List<Biomarker> get metrics           => _metrics;
   List<Biomarker> get movimientoMetrics => _movimientoMetrics;
@@ -69,11 +82,16 @@ class DashboardProvider with ChangeNotifier {
   DateTime? get cardiacoEnd             => _cardiacoEnd;
   DateTime? get estresStart             => _estresStart;
   DateTime? get estresEnd               => _estresEnd;
+  DateTime? get suenoStart                => _suenoStart;
+  DateTime? get suenoEnd                  => _suenoEnd;
   DateTime? get dataRangeStart          => _dataRangeStart;
   DateTime? get dataRangeEnd            => _dataRangeEnd;
   int get selectedHours                 => _selectedHours;
   int get selectedCardiacoHours         => _selectedCardiacoHours;
   int get selectedEstresHours           => _selectedEstresHours;
+  int get selectedSuenoHours            => _selectedSuenoHours;
+  List<Biomarker> get suenoMetrics      => _suenoMetrics;
+  bool get isSuenoLoading               => _isSuenoLoading;
 
   static String _bucketForHours(int hours) {
     if (hours <= 1)  return '30 seconds';
@@ -102,6 +120,12 @@ class DashboardProvider with ChangeNotifier {
     return bucket.replaceAll(' seconds', ' seg').replaceAll(' minutes', ' min');
   }
 
+  String get suenoResolucion {
+    if (_suenoStart == null || _suenoEnd == null) return '';
+    final bucket = _bucketForHours(_selectedSuenoHours);
+    return bucket.replaceAll(' seconds', ' seg').replaceAll(' minutes', ' min');
+  }
+
   void _applyHourFilter() {
     if (_dataRangeEnd == null || _dataRangeStart == null) return;
     final end = _dataRangeEnd!;
@@ -116,6 +140,10 @@ class DashboardProvider with ChangeNotifier {
     final startEst = end.subtract(Duration(hours: _selectedEstresHours));
     _estresEnd   = end;
     _estresStart = startEst.isBefore(_dataRangeStart!) ? _dataRangeStart! : startEst;
+
+    final startSue = end.subtract(Duration(hours: _selectedSuenoHours));
+    _suenoEnd   = end;
+    _suenoStart = startSue.isBefore(_dataRangeStart!) ? _dataRangeStart! : startSue;
   }
 
   Future<void> fetchMetrics(String participantId, String username) async {
@@ -207,14 +235,38 @@ class DashboardProvider with ChangeNotifier {
     }
   }
 
+  Future<void> fetchSuenoMetrics(String participantId, String username) async {
+    if (_suenoStart == null || _suenoEnd == null) return;
+    _isSuenoLoading = true;
+    notifyListeners();
+    try {
+      final bucket = _bucketForHours(_selectedSuenoHours);
+      final all = await _apiService.getMetrics(
+        participantId,
+        username,
+        startTime: _suenoStart!.toUtc().toIso8601String(),
+        endTime:   _suenoEnd!.toUtc().toIso8601String(),
+        bucketSize: bucket,
+      );
+      _suenoMetrics = all.where((m) => kSuenoSensores.contains(m.sensorType)).toList();
+    } catch (_) {
+      _suenoMetrics = [];
+    } finally {
+      _isSuenoLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> setHourFilter(int hours, String participantId, String username) async {
     _selectedHours = hours;
     _selectedCardiacoHours = hours;
     _selectedEstresHours = hours;
+    _selectedSuenoHours = hours;
     _applyHourFilter();
     await fetchMovimientoMetrics(participantId, username);
     await fetchCardiacoMetrics(participantId, username);
     await fetchEstresMetrics(participantId, username);
+    await fetchSuenoMetrics(participantId, username);
   }
 
   Future<void> setMovimientoRango(
@@ -251,6 +303,18 @@ class DashboardProvider with ChangeNotifier {
     _estresEnd   = end;
     _selectedEstresHours = _durationToNearestHours(end.difference(start));
     await fetchEstresMetrics(participantId, username);
+  }
+
+  Future<void> setSuenoRango(
+    DateTime start,
+    DateTime end,
+    String participantId,
+    String username,
+  ) async {
+    _suenoStart = start;
+    _suenoEnd   = end;
+    _selectedSuenoHours = _durationToNearestHours(end.difference(start));
+    await fetchSuenoMetrics(participantId, username);
   }
 
   static int _durationToNearestHours(Duration d) {

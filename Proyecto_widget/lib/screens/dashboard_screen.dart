@@ -3,20 +3,18 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
-import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../providers/dashboard_provider.dart';
 import '../models/biomarker.dart';
-import '../widgets/quality_legend.dart';
 import '../widgets/sidebar_layout.dart';
-import '../widgets/app_toast.dart';
 import '../widgets/confirm_dialog.dart';
-import '../services/api_service.dart';
+import '../widgets/app_toast.dart';
 import '../utils/app_colors.dart';
 import 'movimiento_screen.dart';
 import 'cardiaco_screen.dart';
 import 'estres_screen.dart';
+import 'sueno_screen.dart';
 import 'login_screen.dart';
 
 const Color primaryBlue  = AppColors.textPrimary;
@@ -123,7 +121,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               username: widget.username,
             );
           case 4:
-            return _buildSensorSection(provider, ['sleep_detection', 'activity_class', 'activity_intensity']);
+            return SuenoScreen(
+              participantId: widget.participantId,
+              username: widget.username,
+            );
           default:
             return _buildInicio(provider);
         }
@@ -373,137 +374,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    Color _getComplianceColor(double pct) {
-      if (pct >= 85) return const Color(0xFF10B981);
-      if (pct >= 60) return const Color(0xFFF59E0B);
-      return const Color(0xFFEF4444);
-    }
-  Widget _buildSensorSection(DashboardProvider provider, List<String> allowedSensors) {
-    final filteredMetrics = Map.fromEntries(
-      provider.metricsBySensor.entries.where((e) => allowedSensors.contains(e.key))
-    );
-
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: kBorderColor)),
-            ),
-            child: TabBar(
-              indicatorColor: accentTeal,
-              indicatorWeight: 3,
-              labelColor: primaryBlue,
-              unselectedLabelColor: nudeColor,
-              labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
-              tabs: const [
-                Tab(
-                  height: 56,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(LucideIcons.heartPulse, size: 18),
-                      SizedBox(width: 8),
-                      Text('Monitorización Clínica'),
-                    ],
-                  ),
-                ),
-                Tab(
-                  height: 56,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(LucideIcons.flaskConical, size: 18),
-                      SizedBox(width: 8),
-                      Text('Análisis y Exportación'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                filteredMetrics.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No hay datos para esta sección.',
-                          style: GoogleFonts.inter(color: nudeColor),
-                        ),
-                      )
-                    : Container(
-                        color: kBgScreen,
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          children: [
-                            const QualityLegend(),
-                            const SizedBox(height: 16),
-                            ...filteredMetrics.entries.map((entry) {
-                              return BiomarkerCard(
-                                sensorType: entry.key,
-                                data: entry.value,
-                                provider: provider,
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                Container(
-                  color: kBgScreen,
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 40),
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: accentTeal.withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(LucideIcons.download, size: 48, color: accentTeal),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Exportar Datos del Participante',
-                            style: GoogleFonts.inter(color: primaryBlue, fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Descarga todos los biomarcadores en formato CSV para análisis externo.',
-                            style: GoogleFonts.inter(color: nudeColor, fontSize: 14),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 32),
-                          ElevatedButton.icon(
-                            icon: const Icon(LucideIcons.download, size: 18),
-                            label: const Text('Descargar CSV'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryBlue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            onPressed: () => _exportData(context),
-                          ),
-                          const SizedBox(height: 40),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
 
   Widget _buildEmptyState(BuildContext context, DashboardProvider provider) {
@@ -541,24 +411,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
 
-  Future<void> _exportData(BuildContext context) async {
-    AppToast.show(context, 'Preparando exportación...', type: ToastType.info);
-    try {
-      final api = ApiService();
-      final bytes = await api.exportParticipantCsv(widget.participantId);
-      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-      final fileName = '${widget.participantId}_$timestamp.csv';
-      final dir = Directory('/home/${Platform.environment['USER'] ?? 'ines'}/Escritorio');
-      final savePath = '${dir.path}/$fileName';
-      await File(savePath).writeAsBytes(bytes);
-      if (context.mounted) {
-        AppToast.show(context, 'CSV guardado en Escritorio: $fileName', type: ToastType.success);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.show(context, 'Error al exportar: $e', type: ToastType.error);
-      }
-    }
+
+
+  Color _getComplianceColor(double pct) {
+    if (pct >= 85) return const Color(0xFF10B981);
+    if (pct >= 60) return const Color(0xFFF59E0B);
+    return const Color(0xFFEF4444);
   }
 }
 

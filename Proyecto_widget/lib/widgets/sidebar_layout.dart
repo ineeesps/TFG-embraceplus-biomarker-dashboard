@@ -192,8 +192,8 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   },
                 ),
                 _buildNavItem(
-                  icon: LucideIcons.clipboardCheck,
-                  title: 'Clasificación',
+                  icon: LucideIcons.moon,
+                  title: 'Sueño y Reposo',
                   isSelected: widget.selectedIndex == 4,
                   isExpanded: isExpanded,
                   onTap: () {

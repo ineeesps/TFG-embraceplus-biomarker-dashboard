@@ -13,32 +13,26 @@ const Color _surface = AppColors.bgCard;
 const Color _border  = AppColors.border;
 const Color _text    = AppColors.textPrimary;
 const Color _muted   = AppColors.textSecondary;
-// NUEVA PALETA CLINICA (Sincronizada con AppColors)
 const Color _identidad = AppColors.clinicalMove;
 const Color _pizarra   = AppColors.clinicalSlate;
 
-// CLASIFICACIÓN (ESCALA DE GRISES TÉCNICA - MÁS NOTORIOS)
 const Color _clsGap     = AppColors.statusGap;
-const Color _clsStill   = Color(0xFFCBD5E1); // Gris medio-claro
-const Color _clsWalk    = Color(0xFF64748B); // Gris pizarra (notorio)
-const Color _clsRun     = Color(0xFF1E293B); // Gris casi negro (muy notorio)
+const Color _clsStill   = Color(0xFFCBD5E1); 
+const Color _clsWalk    = Color(0xFF64748B); 
+const Color _clsRun     = Color(0xFF1E293B); 
 const Color _clsGeneric = Color(0xFF94A3B8);
 
-// INTENSIDAD (HEATMAP NARANJA)
 const Color _intGap = AppColors.statusGap;
 const Color _intSed = Color(0xFFF8FAFC); 
 const Color _intLPA = Color(0xFFFEF3C7); 
 const Color _intMPA = Color(0xFFFB923C); 
 const Color _intVPA = AppColors.clinicalMove;
 
-// CARGA CINÉTICA
 const Color _kMagnitude = AppColors.clinicalMove;
 const Color _kStability = AppColors.clinicalTeal;
 
-// PASOS
 const Color _targetColor = Color(0xFFCBD5E1);
 
-// BIOMECÁNICA (PASTEL/MATE)
 const Color _axisX = Color(0xFFFDBA74);
 const Color _axisY = Color(0xFF5EEAD4);
 const Color _axisZ = Color(0xFFCBD5E1);
@@ -141,7 +135,8 @@ class _ControlPanel extends StatelessWidget {
   final String participantId;
   final String username;
   const _ControlPanel({required this.provider, required this.participantId, required this.username});
-
+  @override
+  Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 12),

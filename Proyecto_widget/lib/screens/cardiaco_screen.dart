@@ -57,8 +57,7 @@ class _CardiacoScreenState extends State<CardiacoScreen> {
         final hrData = byType['pulse_rate'] ?? [];
         final rrData = byType['respiratory_rate'] ?? [];
 
-        final sections = [
-          _ControlPanel(provider: provider, participantId: widget.participantId, username: widget.username),
+        final listSections = [
           if (hrData.isEmpty && rrData.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 100),
@@ -67,7 +66,6 @@ class _CardiacoScreenState extends State<CardiacoScreen> {
               ),
             )
           else ...[
-            const SizedBox(height: 24),
             _KPIsLayer(hrData: hrData, rrData: rrData),
             const SizedBox(height: 24),
             _CouplingGraphLayer(hrData: hrData, rrData: rrData),
@@ -76,39 +74,44 @@ class _CardiacoScreenState extends State<CardiacoScreen> {
           ]
         ];
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final isMobile = constraints.maxWidth < 600;
-            final isLaptop = constraints.maxWidth > 1100;
-            final padding  = isMobile ? 12.0 : (constraints.maxWidth > 720 ? 24.0 : 16.0);
+        return Column(
+          children: [
+            _ControlPanel(provider: provider, participantId: widget.participantId, username: widget.username),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobile = constraints.maxWidth < 600;
+                  final isLaptop = constraints.maxWidth > 1100;
+                  final padding  = isMobile ? 12.0 : (constraints.maxWidth > 720 ? 24.0 : 16.0);
 
-            if (isLaptop && sections.length >= 7) {
-              return ListView(
-                padding: EdgeInsets.all(padding),
-                children: [
-                  sections[0], // Control Panel
-                  const SizedBox(height: 24),
-                  sections[2], // KPIs Layer
-                  const SizedBox(height: 24),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  if (isLaptop && listSections.length >= 5) {
+                    return ListView(
+                      padding: EdgeInsets.all(padding),
                       children: [
-                        Expanded(child: sections[4]), // Coupling Graph
-                        const SizedBox(width: 20),
-                        Expanded(child: sections[6]), // Scatter Plot
+                        listSections[0], // KPIs Layer
+                        const SizedBox(height: 24),
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: listSections[2]), // Coupling Graph
+                              const SizedBox(width: 20),
+                              Expanded(child: listSections[4]), // Scatter Plot
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
-                  ),
-                ],
-              );
-            }
+                    );
+                  }
 
-            return ListView(
-              padding: EdgeInsets.all(padding),
-              children: sections,
-            );
-          },
+                  return ListView(
+                    padding: EdgeInsets.all(padding),
+                    children: listSections,
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
@@ -333,9 +336,6 @@ class _TimeButton extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------
-// LAYER 1: KPIs
-// ---------------------------------------------------------
 class _KPIsLayer extends StatelessWidget {
   final List<Biomarker> hrData;
   final List<Biomarker> rrData;
@@ -468,7 +468,7 @@ class _KPICard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(isMobile ? 6 : 8),
+                padding: EdgeInsets.all(isMobile ? 6 : 8),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
@@ -502,7 +502,7 @@ class _KPICard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: isMobile ? 12 : 16),
+          const SizedBox(height: 12),
           Text(value, style: GoogleFonts.inter(fontSize: isMobile ? 24 : 28, fontWeight: FontWeight.bold, color: _text, letterSpacing: -0.5)),
           const SizedBox(height: 4),
           Text(subtitle, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: _muted)),
@@ -512,9 +512,6 @@ class _KPICard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------
-// LAYER 2: Coupling Graph
-// ---------------------------------------------------------
 class _CouplingGraphLayer extends StatelessWidget {
   final List<Biomarker> hrData;
   final List<Biomarker> rrData;
@@ -523,10 +520,11 @@ class _CouplingGraphLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 20),
         border: Border.all(color: _border),
         boxShadow: [BoxShadow(color: const Color(0xFF0F172A).withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 4))],
       ),
@@ -534,16 +532,23 @@ class _CouplingGraphLayer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Icon(LucideIcons.activity, size: 20, color: _text),
-                    const SizedBox(width: 12),
-                    Text('Dinámica de Acoplamiento Temporal', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
-                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.activity, size: 20, color: _text),
+                        const SizedBox(width: 12),
+                        Text('Dinámica de Acoplamiento Temporal', style: GoogleFonts.outfit(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold, color: _text)),
+                      ],
+                    ),
                     Tooltip(
                       message: "Evaluación de la sincronía entre el pulso y la respiración. Una base rítmica estable indica un buen estado autonómico.",
                       padding: const EdgeInsets.all(12),
@@ -576,8 +581,6 @@ class _CouplingGraphLayer extends StatelessWidget {
   LineChartData _buildChartData(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
     // Escalar RR para que conviva visualmente con HR
-    // HR suele estar entre 50 y 150. RR suele estar entre 10 y 30.
-    // Factor de escala ideal: x4
     const double rrScale = 4.0; 
 
     final List<LineChartBarData> bars = [];
@@ -733,9 +736,6 @@ class _CouplingGraphLayer extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------
-// LAYER 3: Scatter Plot
-// ---------------------------------------------------------
 class _ScatterPlotLayer extends StatelessWidget {
   final List<Biomarker> hrData;
   final List<Biomarker> rrData;
@@ -766,9 +766,10 @@ class _ScatterPlotLayer extends StatelessWidget {
     }
 
     return Container(
+      margin: EdgeInsets.only(bottom: isMobile ? 12 : 24),
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 20),
         border: Border.all(color: _border),
         boxShadow: [BoxShadow(color: const Color(0xFF0F172A).withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 4))],
       ),
@@ -776,7 +777,7 @@ class _ScatterPlotLayer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

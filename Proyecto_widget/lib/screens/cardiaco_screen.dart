@@ -203,8 +203,8 @@ class _ControlPanel extends StatelessWidget {
                 children: [
                   headerIcon,
                   const SizedBox(width: 12),
-                  headerTitle,
-                  const Spacer(),
+                  Expanded(child: headerTitle),
+                  const SizedBox(width: 12),
                   resolutionBadge,
                 ],
               );

@@ -584,7 +584,7 @@ class BiomarkerCard extends StatelessWidget {
   }
 
   Widget _buildStatusTag(String flag) {
-    Color color = const Color(0xFF34D399); // Emerald
+    Color color = const Color(0xFF34D399);
     String label = 'NORMAL';
     if (flag == 'worn_during_motion') { color = const Color(0xFFFBBF24); label = 'MOVIMIENTO'; }
     else if (flag == 'worn_with_low_signal_quality' || flag == 'low_signal_quality') { color = const Color(0xFFFB7185); label = 'SEÑAL BAJA'; }
@@ -619,24 +619,23 @@ class BiomarkerCard extends StatelessWidget {
   }
 
   LineChartData _buildChartData(BuildContext context, List<Biomarker> data) {
-    final displayData = data;
     final List<LineChartBarData> bars = [];
     
     List<List<FlSpot>> segments = [];
     List<String> segmentQualities = [];
     
-    if (displayData.isNotEmpty) {
+    if (data.isNotEmpty) {
       List<FlSpot> currentSegment = [];
-      String currentQuality = displayData[0].qualityFlag;
-      DateTime? lastTime = displayData[0].time;
+      String currentQuality = data[0].qualityFlag;
+      DateTime? lastTime = data[0].time;
       const int splitThresholdMs = 5 * 60 * 1000;
 
-      for (int i = 0; i < displayData.length; i++) {
-        final currentDT = displayData[i].time;
+      for (int i = 0; i < data.length; i++) {
+        final currentDT = data[i].time;
         double xVal = currentDT.toUtc().millisecondsSinceEpoch.toDouble();
         
         bool timeGap = lastTime != null && (currentDT.difference(lastTime).inMilliseconds).abs() > splitThresholdMs;
-        bool qualityChange = displayData[i].qualityFlag != currentQuality;
+        bool qualityChange = data[i].qualityFlag != currentQuality;
 
         if (qualityChange || timeGap) {
           if (currentSegment.isNotEmpty) {
@@ -644,11 +643,11 @@ class BiomarkerCard extends StatelessWidget {
             segmentQualities.add(currentQuality);
           }
           currentSegment = [];
-          currentQuality = displayData[i].qualityFlag;
+          currentQuality = data[i].qualityFlag;
         }
 
-        if (displayData[i].value != null) {
-          currentSegment.add(FlSpot(xVal, displayData[i].value!));
+        if (data[i].value != null) {
+          currentSegment.add(FlSpot(xVal, data[i].value!));
         }
         lastTime = currentDT;
       }
@@ -702,9 +701,8 @@ class BiomarkerCard extends StatelessWidget {
       }
     }
 
-    final sType = sensorType;
-    bool isCategorical = ['activity_class', 'body_position', 'activity_intensity', 'sleep_detection'].contains(sType);
-    final allValues = displayData.where((e) => e.value != null).map((e) => e.value!);
+    bool isCategorical = ['activity_class', 'body_position', 'activity_intensity', 'sleep_detection'].contains(sensorType);
+    final allValues = data.where((e) => e.value != null).map((e) => e.value!);
     double minY = allValues.isEmpty ? 0.0 : allValues.reduce((a, b) => a < b ? a : b);
     double maxY = allValues.isEmpty ? 100.0 : allValues.reduce((a, b) => a > b ? a : b);
     double padding = (maxY - minY) * 0.15;
@@ -714,8 +712,8 @@ class BiomarkerCard extends StatelessWidget {
     double yInterval = (maxY - minY) / 5;
     if (yInterval <= 0) yInterval = 1.0;
 
-    double minX = displayData.isNotEmpty ? displayData.first.time.toUtc().millisecondsSinceEpoch.toDouble() : 0.0;
-    double maxX = displayData.isNotEmpty ? displayData.last.time.toUtc().millisecondsSinceEpoch.toDouble() : 0.0;
+    double minX = data.isNotEmpty ? data.first.time.toUtc().millisecondsSinceEpoch.toDouble() : 0.0;
+    double maxX = data.isNotEmpty ? data.last.time.toUtc().millisecondsSinceEpoch.toDouble() : 0.0;
     
     double xInterval = (maxX - minX) / 5;
     if (xInterval <= 0) xInterval = 3600000; 
@@ -764,16 +762,16 @@ class BiomarkerCard extends StatelessWidget {
                 final intValue = v.round();
                 if ((v - intValue).abs() > 0.1) return const SizedBox();
                 String text = '';
-                if (sType == 'activity_class') {
+                if (sensorType == 'activity_class') {
                   const labels = ['STILL', 'WALK', 'RUN', 'GENERIC'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
-                } else if (sType == 'body_position') {
+                } else if (sensorType == 'body_position') {
                   const labels = ['SIT/LIE', 'STAND', 'LEFT', 'RIGHT', 'PRONE', 'SUPINE', 'MISC'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
-                } else if (sType == 'activity_intensity') {
+                } else if (sensorType == 'activity_intensity') {
                   const labels = ['SED', 'LPA', 'MPA', 'VPA'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
-                } else if (sType == 'sleep_detection') {
+                } else if (sensorType == 'sleep_detection') {
                   const labels = ['WAKE', 'REST', 'INTERRUPT', 'RESERVED'];
                   if (intValue >= 0 && intValue < labels.length) text = labels[intValue];
                 }

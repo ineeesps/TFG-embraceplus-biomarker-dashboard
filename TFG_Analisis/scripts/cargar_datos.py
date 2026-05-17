@@ -40,7 +40,7 @@ class ActicountsAdapter(SensorAdapter):
                 mag = math.sqrt(float(x)**2 + float(y)**2 + float(z)**2)
                 res.append(('acticounts_total', mag))
             return res
-        except:
+        except Exception:
             pass
         return []
 
@@ -68,7 +68,7 @@ class SleepAdapter(SensorAdapter):
                 elif v == 400: res = 3
                 else: res = None
                 return [('sleep_detection', res)]
-        except:
+        except Exception:
             pass
         return [('sleep_detection', None)]
 

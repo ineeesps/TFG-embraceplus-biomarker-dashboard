@@ -10,30 +10,27 @@ import '../providers/dashboard_provider.dart';
 import '../models/biomarker.dart';
 import '../utils/app_colors.dart';
 
-// --- PALETA MIDNIGHT ANALYSIS (Clinical Standard) ---
 const Color _bg          = AppColors.bgScreen;
 const Color _surface     = AppColors.bgCard;
 const Color _text        = AppColors.textPrimary;
 const Color _muted       = AppColors.textSecondary;
 const Color _border      = AppColors.border;
 
-const Color _accentIndigo = Color(0xFF4F46E5); // Indigo Deep
-const Color _accentAmber  = Color(0xFFF59E0B); // Alerta/Vigilia
-const Color _accentTeal   = Color(0xFF14B8A6); // Rotación/Prono
-const Color _accentRed    = Color(0xFFEF4444); // Marcadores TFG (Microdespertares)
+const Color _accentIndigo = Color(0xFF4F46E5);
+const Color _accentAmber  = Color(0xFFF59E0B);
+const Color _accentTeal   = Color(0xFF14B8A6);
+const Color _accentRed    = Color(0xFFEF4444);
 const Color _tooltipBg    = Color(0xFF0F172A);
 
-// Colores Fase Sueño
-const Color _deepSleep    = Color(0xFF312E81); 
+const Color _deepSleep    = Color(0xFF312E81);
 const Color _lightSleep   = Color(0xFF818CF8);
 
-// Colores Postura (Alta Accesibilidad)
-const Color _posSupine    = Color(0xFF4F46E5); // Boca arriba (Indigo)
-const Color _posLateral   = Color(0xFFC7D2FE); // Lado (Lavanda Claro)
-const Color _posProne     = Color(0xFF14B8A6); // Boca abajo (Teal)
-const Color _posSitting   = Color(0xFF64748B); // Sentado (Gris Pizarra)
-const Color _posStanding  = Color(0xFFEA580C); // De pie (Naranja Intenso)
-const Color _posMisc      = Color(0xFFE2E8F0); // Transición
+const Color _posSupine    = Color(0xFF4F46E5);
+const Color _posLateral   = Color(0xFFC7D2FE);
+const Color _posProne     = Color(0xFF14B8A6);
+const Color _posSitting   = Color(0xFF64748B);
+const Color _posStanding  = Color(0xFFEA580C);
+const Color _posMisc      = Color(0xFFE2E8F0);
 
 class SuenoScreen extends StatefulWidget {
   final String participantId;
@@ -384,13 +381,11 @@ class _KPIsLayer extends StatelessWidget {
 
     final double efficiency = totalPoints > 0 ? (asleepPoints / totalPoints) * 100 : 0.0;
 
-    // Cada punto de datos representa minsPorPunto minutos según el bucket activo
     final int minsPorPunto = provider.suenoMinutosPorPunto;
     final int tstMinutes = asleepPoints * minsPorPunto;
     final int tstHours   = tstMinutes ~/ 60;
     final int tstRemMins = tstMinutes % 60;
 
-    // Cálculo Índice WASO: Minutos despierto tras el primer sueño consolidado
     int wasoPoints = 0;
     bool sleepOnsetReached = false;
     for (var d in sleepData) {
@@ -404,7 +399,6 @@ class _KPIsLayer extends StatelessWidget {
     }
     final int wasoMinutes = wasoPoints * minsPorPunto;
 
-    // Cálculo Índice de Rotación: Cambios de postura por hora
     int postureChanges = 0;
     double? lastPos;
     for (var d in posData) {
@@ -604,15 +598,13 @@ class _HipnogramaLayer extends StatelessWidget {
     final List<FlSpot> spots = [];
     for (var d in sleepData) {
       if (d.value == null) continue;
-      // sleep_detection values: 0=awake, 1=light sleep, 2+=deep sleep
       double yVal;
-      if (d.value! == 0)      { yVal = 3; } // DESPIERTO
-      else if (d.value! == 1) { yVal = 2; } // LIGERO
-      else                    { yVal = 1; } // PROFUNDO
+      if (d.value! == 0)      { yVal = 3; }
+      else if (d.value! == 1) { yVal = 2; }
+      else                    { yVal = 1; }
       spots.add(FlSpot(d.time.toUtc().millisecondsSinceEpoch.toDouble(), yVal));
     }
 
-    // Marcadores TFG: Microdespertares motores (Acelerometría alta mientras duerme)
     final List<VerticalLine> redMarkers = [];
     for (var act in activity) {
       if (act.value != null && act.value! > 0) {

@@ -89,15 +89,15 @@ class _CardiacoScreenState extends State<CardiacoScreen> {
                     return ListView(
                       padding: EdgeInsets.all(padding),
                       children: [
-                        listSections[0], // KPIs Layer
+                        listSections[0],
                         const SizedBox(height: 24),
                         IntrinsicHeight(
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Expanded(child: listSections[2]), // Coupling Graph
+                              Expanded(child: listSections[2]),
                               const SizedBox(width: 20),
-                              Expanded(child: listSections[4]), // Scatter Plot
+                              Expanded(child: listSections[4]),
                             ],
                           ),
                         ),

@@ -59,10 +59,6 @@ INVESTIGADORES = {
 }
 
 async def get_lista_participantes_db(username: str):
-    """
-    Obtiene la lista de participantes de la base de datos para un investigador.
-    La DB es la única fuente de verdad.
-    """
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()

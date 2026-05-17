@@ -772,26 +772,32 @@ class _ContextoGraphLayer extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _tempColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(LucideIcons.thermometer, size: 16, color: _tempColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Demanda Metabólica y Termorregulación',
-                        style: GoogleFonts.outfit(
-                          fontSize: isMobile ? 16 : 18, 
-                          fontWeight: FontWeight.bold, 
-                          color: _text
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _tempColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(LucideIcons.thermometer, size: 16, color: _tempColor),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Demanda Metabólica y Termorregulación',
+                          style: GoogleFonts.outfit(
+                            fontSize: isMobile ? 16 : 18,
+                            fontWeight: FontWeight.bold,
+                            color: _text,
+                          ),
+                        ),
+                      ],
                     ),
                     Tooltip(
                       message: "Utilice esta vista para descartar falsos positivos de estrés. Si los METs son bajos, los cambios en la EDA y temperatura se atribuyen a estados emocionales o cognitivos.",
@@ -996,12 +1002,26 @@ class _ContextoGraphLayer extends StatelessWidget {
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (_) => _tooltipBg,
+          tooltipBorder: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
           getTooltipItems: (touchedSpots) {
             return touchedSpots.map((spot) {
-              final isMet = spot.bar.color == _metsColor;
-              final val = isMet ? spot.y / metScale : spot.y;
-              final label = isMet ? 'METs' : 'Temp';
-              return LineTooltipItem('$label: ${val.toStringAsFixed(1)}', GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11));
+              final isMet = spot.bar.color == _metsColor ||
+                  (spot.barIndex == 0 && metsData.any((e) => e.value != null));
+              final val    = isMet ? spot.y / metScale : spot.y;
+              final label  = isMet ? 'METs' : 'Temp';
+              final unit   = isMet ? '' : ' °C';
+              final dt     = DateTime.fromMillisecondsSinceEpoch(spot.x.toInt(), isUtc: true);
+              final time   = DateFormat('HH:mm').format(dt);
+              return LineTooltipItem(
+                '$label: ${val.toStringAsFixed(1)}$unit',
+                GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                children: [
+                  TextSpan(
+                    text: '\n$time',
+                    style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.6), fontSize: 9),
+                  ),
+                ],
+              );
             }).toList();
           },
         ),

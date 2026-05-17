@@ -284,10 +284,12 @@ class DashboardProvider with ChangeNotifier {
     _selectedEstresHours = hours;
     _selectedSuenoHours = hours;
     _applyHourFilter();
-    await fetchMovimientoMetrics(participantId, username);
-    await fetchCardiacoMetrics(participantId, username);
-    await fetchEstresMetrics(participantId, username);
-    await fetchSuenoMetrics(participantId, username);
+    await Future.wait([
+      fetchMovimientoMetrics(participantId, username),
+      fetchCardiacoMetrics(participantId, username),
+      fetchEstresMetrics(participantId, username),
+      fetchSuenoMetrics(participantId, username),
+    ]);
   }
 
   Future<void> setMovimientoRango(

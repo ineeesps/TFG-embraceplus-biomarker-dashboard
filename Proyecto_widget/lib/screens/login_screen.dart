@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
   String? _errorMessage;
 
   static const Color kTextPrimary    = AppColors.textPrimary;
@@ -26,14 +27,15 @@ class _LoginScreenState extends State<LoginScreen> {
   static const Color kBorderColor    = AppColors.border;
 
   Future<void> _login() async {
-    setState(() => _errorMessage = null);
+    if (_isLoading) return;
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     final api = ApiService();
     final username = _userController.text.trim();
     final password = _passwordController.text;
 
     try {
-      final assignedParticipants = await api.login(username, password);
+      await api.login(username, password);
       if (!mounted) return;
 
       final summaryRaw = await api.getParticipantsSummary(username);
@@ -46,13 +48,13 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(
           builder: (context) => ParticipantSelectionScreen(
             username: username,
-            assignedParticipants: assignedParticipants,
+            assignedParticipants: const [],
             preloadedData: preloaded,
           ),
         ),
       );
     } catch (e) {
-      setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
+      if (mounted) setState(() { _isLoading = false; _errorMessage = e.toString().replaceAll('Exception: ', ''); });
     }
   }
 
@@ -175,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             style: GoogleFonts.inter(color: kTextPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                            onSubmitted: (_) => _login(),
+                            onSubmitted: (_) { if (!_isLoading) _login(); },
                             decoration: InputDecoration(
                               labelText: 'Contraseña',
                               labelStyle: GoogleFonts.inter(color: kTextSecondary, fontSize: 13),
@@ -234,18 +236,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 32),
                           
                           ElevatedButton(
-                            onPressed: _login,
+                            onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: kTextPrimary,
                               foregroundColor: Colors.white,
+                              disabledBackgroundColor: kTextPrimary.withValues(alpha: 0.5),
                               padding: const EdgeInsets.symmetric(vertical: 18),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               elevation: 0,
                             ),
-                            child: Text(
-                              'Acceder al sistema',
-                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text('Acceder al sistema', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
                           ),
                           const SizedBox(height: 24),
                           

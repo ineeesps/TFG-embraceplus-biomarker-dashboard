@@ -830,12 +830,20 @@ class _ScatterPlotLayer extends StatelessWidget {
 
   ScatterChartData _buildScatterData(BuildContext context, List<ScatterSpot> spots) {
     final isMobile = MediaQuery.of(context).size.width < 600;
+
+    final minRR = spots.map((s) => s.x).reduce(math.min);
+    final maxRR = spots.map((s) => s.x).reduce(math.max);
+    final minHR = spots.map((s) => s.y).reduce(math.min);
+    final maxHR = spots.map((s) => s.y).reduce(math.max);
+    final xPad = ((maxRR - minRR) < 1 ? 1.0 : (maxRR - minRR)) * 0.15;
+    final yPad = ((maxHR - minHR) < 1 ? 1.0 : (maxHR - minHR)) * 0.15;
+
     return ScatterChartData(
       scatterSpots: spots,
-      minX: 5,
-      maxX: 40,
-      minY: 40,
-      maxY: 180,
+      minX: (minRR - xPad).clamp(0.0, double.infinity),
+      maxX: maxRR + xPad,
+      minY: (minHR - yPad).clamp(0.0, double.infinity),
+      maxY: maxHR + yPad,
       gridData: FlGridData(
         show: true,
         getDrawingHorizontalLine: (v) => FlLine(color: _border.withValues(alpha: 0.4), strokeWidth: 1),

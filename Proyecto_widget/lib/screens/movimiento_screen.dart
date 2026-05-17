@@ -343,13 +343,15 @@ class _KPIsLayer extends StatelessWidget {
     final intensityData = byType['activity_intensity'] ?? [];
     double avgIntensity = 0;
     if (intensityData.isNotEmpty) {
-      avgIntensity = intensityData.where((e) => e.value != null).map((e) => e.value!).reduce((a, b) => a + b) / intensityData.length;
+      final validIntensity = intensityData.where((e) => e.value != null).map((e) => e.value!).toList();
+      if (validIntensity.isNotEmpty) avgIntensity = validIntensity.reduce((a, b) => a + b) / validIntensity.length;
     }
 
     final vecData = byType['actigraphy_vector'] ?? byType['acticounts_total'] ?? [];
     double avgVec = 0;
     if (vecData.isNotEmpty) {
-      avgVec = vecData.where((e) => e.value != null).map((e) => e.value!).reduce((a, b) => a + b) / vecData.length;
+      final validVec = vecData.where((e) => e.value != null).map((e) => e.value!).toList();
+      if (validVec.isNotEmpty) avgVec = validVec.reduce((a, b) => a + b) / validVec.length;
     }
 
     final compliance = provider.compliancePercentage ?? 0.0;
@@ -561,8 +563,8 @@ class _ActivitySpectrum extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cls = byType['activity_class']     ?? [];
-    final int = byType['activity_intensity'] ?? [];
+    final cls     = byType['activity_class']     ?? [];
+    final intData = byType['activity_intensity'] ?? [];
 
     return _SectionCard(
       icon: LucideIcons.layers,
@@ -573,7 +575,7 @@ class _ActivitySpectrum extends StatelessWidget {
         children: [
           _HeatmapRow(label: 'MOTOR', data: cls, colorFn: _colorCls),
           const SizedBox(height: 12),
-          _HeatmapRow(label: 'INTENSIDAD', data: int, colorFn: _colorInt),
+          _HeatmapRow(label: 'INTENSIDAD', data: intData, colorFn: _colorInt),
           const SizedBox(height: 28),
           LayoutBuilder(builder: (context, constraints) {
             final narrow = constraints.maxWidth < 700;

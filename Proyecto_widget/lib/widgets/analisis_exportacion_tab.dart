@@ -390,7 +390,7 @@ class _AnalisisExportacionTabState extends State<AnalisisExportacionTab> {
         endTime: widget.endTime?.toUtc().toIso8601String(),
       );
 
-      // Filtrado local de columnas (Brecha 1)
+      // Filtrar las columnas para exportar únicamente los sensores activos de la pantalla
       String csvString = utf8.decode(bytes);
       List<String> lines = csvString.split('\n');
       if (lines.isNotEmpty) {

@@ -14,7 +14,7 @@ import 'dart:io';
 class ParticipantData {
   final String id;
   final double compliance;
-  final String status; 
+  final String status;
   final String dateRange;
   final int totalHours;
 
@@ -381,7 +381,6 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
             ListTile(
               leading: const Icon(LucideIcons.fileUp, color: accentTeal, size: 20),
               title: const Text('Subir nuevos datos (CSV)'),
-
               onTap: () {
                 Navigator.pop(context);
                 _showUploadModal(prefilledId: id);
@@ -832,17 +831,17 @@ class _ParticipantSelectionScreenState extends State<ParticipantSelectionScreen>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                   icon: const Icon(LucideIcons.barChart2, color: accentTeal, size: 18),
+                                  icon: const Icon(LucideIcons.barChart2, color: accentTeal, size: 18),
                                   onPressed: () => _navigateToDashboard(data.id),
                                   tooltip: 'Ver Dashboard',
                                 ),
                                 IconButton(
-                                   icon: const Icon(LucideIcons.pencil, color: nudeColor, size: 18),
+                                  icon: const Icon(LucideIcons.pencil, color: nudeColor, size: 18),
                                   onPressed: () => _showEditOptions(data.id),
                                   tooltip: 'Editar/Subir',
                                 ),
                                 IconButton(
-                                   icon: const Icon(LucideIcons.trash2, color: Color(0xFF991B1B), size: 18),
+                                  icon: const Icon(LucideIcons.trash2, color: Color(0xFF991B1B), size: 18),
                                   onPressed: () => _deleteParticipant(data.id),
                                   tooltip: 'Eliminar',
                                 ),

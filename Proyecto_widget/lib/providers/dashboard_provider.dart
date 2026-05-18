@@ -169,7 +169,20 @@ class DashboardProvider with ChangeNotifier {
         _applyHourFilter();
       }
 
-      _metrics = await _apiService.getMetrics(participantId, username);
+      await Future.wait([
+        fetchMovimientoMetrics(participantId, username),
+        fetchCardiacoMetrics(participantId, username),
+        fetchEstresMetrics(participantId, username),
+        fetchSuenoMetrics(participantId, username),
+      ]);
+
+      // _metrics consolidado: unión de todos los módulos para backward compat
+      _metrics = [
+        ..._movimientoMetrics,
+        ..._cardiacoMetrics,
+        ..._estresMetrics,
+        ..._suenoMetrics,
+      ];
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -362,31 +375,31 @@ class DashboardProvider with ChangeNotifier {
   }
 
   int? get totalSteps {
-    final steps = _metrics.where((m) => m.sensorType == 'step_count' && m.value != null);
+    final steps = _movimientoMetrics.where((m) => m.sensorType == 'step_count' && m.value != null);
     if (steps.isEmpty) return null;
     return steps.fold<double>(0.0, (sum, m) => sum + m.value!).toInt();
   }
 
   int? get avgBpm {
-    final bpm = _metrics.where((m) => m.sensorType == 'pulse_rate' && m.value != null);
+    final bpm = _cardiacoMetrics.where((m) => m.sensorType == 'pulse_rate' && m.value != null);
     if (bpm.isEmpty) return null;
     return (bpm.fold<double>(0.0, (sum, m) => sum + m.value!) / bpm.length).toInt();
   }
 
   double? get totalMets {
-    final mets = _metrics.where((m) => m.sensorType == 'met' && m.value != null);
+    final mets = _estresMetrics.where((m) => m.sensorType == 'met' && m.value != null);
     if (mets.isEmpty) return null;
     return mets.fold<double>(0.0, (sum, m) => sum + m.value!);
   }
 
   double? get avgTemp {
-    final temp = _metrics.where((m) => m.sensorType == 'temperature' && m.value != null);
+    final temp = _estresMetrics.where((m) => m.sensorType == 'temperature' && m.value != null);
     if (temp.isEmpty) return null;
     return temp.fold<double>(0.0, (sum, m) => sum + m.value!) / temp.length;
   }
 
   double? get compliancePercentage {
-    final wearing = _metrics.where((m) => m.sensorType == 'wearing_detection');
+    final wearing = _movimientoMetrics.where((m) => m.sensorType == 'wearing_detection');
     if (wearing.isEmpty) return null;
     int valid = 0;
     for (var m in wearing) {
@@ -398,21 +411,25 @@ class DashboardProvider with ChangeNotifier {
   }
 
   double? get sleepHours {
-    if (_metrics.isEmpty) return null;
-    final sleep = _metrics.where((m) => m.sensorType == 'sleep_detection' && m.value != null);
-    if (sleep.isEmpty) return 0.0;
+    final sleep = _suenoMetrics.where((m) => m.sensorType == 'sleep_detection' && m.value != null);
+    if (sleep.isEmpty) return null;
+    final bucket = _bucketForHours(_selectedSuenoHours);
+    final segundosPorPunto = bucket.contains('30 seconds') ? 30 :
+                             bucket.contains('1 minute')   ? 60 :
+                             bucket.contains('2 minutes')  ? 120 :
+                             bucket.contains('5 minutes')  ? 300 : 600;
     final sleepPoints = sleep.where((m) => m.value! > 0).length;
-    return (sleepPoints * 30) / 3600; // 30 s por punto de datos raw → horas
+    return (sleepPoints * segundosPorPunto) / 3600;
   }
 
   double? get avgStress {
-    final eda = _metrics.where((m) => m.sensorType == 'eda' && m.value != null);
+    final eda = _estresMetrics.where((m) => m.sensorType == 'eda' && m.value != null);
     if (eda.isEmpty) return null;
     return eda.fold<double>(0.0, (sum, m) => sum + m.value!) / eda.length;
   }
 
   String get lastActivity {
-    final act = _metrics.where((m) {
+    final act = _movimientoMetrics.where((m) {
       final type = m.sensorType.toLowerCase().replaceAll('-', '_');
       return (type == 'activity_class' || type == 'activity_classification') && m.value != null;
     }).toList();
@@ -427,7 +444,7 @@ class DashboardProvider with ChangeNotifier {
   }
 
   String get lastPosition {
-    final pos = _metrics.where((m) {
+    final pos = _movimientoMetrics.where((m) {
       final type = m.sensorType.toLowerCase().replaceAll('-', '_');
       return (type == 'body_position' || type == 'body_position_left') && m.value != null;
     }).toList();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/biomarker.dart';
@@ -15,8 +16,10 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'username': username, 'password': password}),
       ).timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      throw Exception('El servidor no responde. Verifica que la API y la base de datos están activas.');
     } catch (e) {
-      throw Exception('Error al conectar con el servidor. Verifica tu conexión.');
+      throw Exception('No se puede conectar al servidor. Verifica tu conexión.');
     }
 
     if (response.statusCode == 200) {
@@ -24,6 +27,8 @@ class ApiService {
       return List<String>.from(data['participantes_asignados']);
     } else if (response.statusCode == 401) {
       throw Exception('Usuario o contraseña incorrectos');
+    } else if (response.statusCode == 500) {
+      throw Exception('Error interno del servidor. La base de datos puede no estar disponible.');
     } else {
       throw Exception('Error del servidor (${response.statusCode})');
     }
@@ -32,14 +37,17 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getParticipantsSummary(String username) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/investigador/$username/resumen_participantes'))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 20));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['participantes']);
       } else {
-        throw Exception('Error al cargar el resumen de participantes');
+        throw Exception('Error al cargar el resumen de participantes (${response.statusCode})');
       }
+    } on TimeoutException {
+      throw Exception('El servidor tardó demasiado. Verifica que la API está activa.');
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Error de conexión: $e');
     }
   }

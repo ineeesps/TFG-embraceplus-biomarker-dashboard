@@ -27,7 +27,8 @@ DB_CONFIG = {
     "database": os.getenv("DB_NAME", "tfg_embrace"),
     "user": os.getenv("DB_USER", "ines"),
     "password": os.getenv("DB_PASSWORD", "tfg_password"),
-    "port": os.getenv("DB_PORT", "5433")
+    "port": os.getenv("DB_PORT", "5433"),
+    "connect_timeout": 5,
 }
 
 PATRONES_SENSORES = {
@@ -65,16 +66,13 @@ INVESTIGADORES = {
 }
 
 async def get_lista_participantes_db(username: str):
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT participant_id FROM biomarcadores WHERE investigador = %s", (username,))
-        db_ids = [row[0] for row in cur.fetchall()]
-        cur.close()
-        conn.close()
-        return sorted(db_ids)
-    except Exception:
-        return []
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT participant_id FROM biomarcadores WHERE investigador = %s", (username,))
+    db_ids = [row[0] for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return sorted(db_ids)
 
 @app.post("/login")
 async def login(req: LoginRequest):
